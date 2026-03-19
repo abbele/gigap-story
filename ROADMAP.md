@@ -314,27 +314,30 @@
 
 ## Fase 2 — Gallery UI (Settimane 2-3)
 
-- [ ] Homepage (`src/app/page.tsx`):
+- [x] Homepage (`app/page.tsx`):
   - Header con logo e titolo
   - Barra di ricerca testuale con debounce 300ms
   - Filtri: chip per museo (multi-select), contatore risultati
 
-- [ ] **Masonry layout** (`<ArtworkGallery />`):
+- [x] **Masonry layout** (`<ArtworkGallery />`):
   - CSS columns Tailwind: `columns-2 md:columns-3 lg:columns-4 xl:columns-5`
   - `break-inside-avoid` su ogni card
-  - Fade-in staggered con GSAP `stagger`
+  - Fade-in con GSAP al mount di ogni card (stagger naturale dall'ordine di rendering)
 
-- [ ] **Artwork Card** (`<ArtworkCard />`):
-  - Immagine lazy (`loading="lazy"`)
-  - Overlay hover: titolo, artista, badge museo
-  - Skeleton shimmer durante caricamento
+- [x] **Artwork Card** (`<ArtworkCard />`):
+  - `next/image fill unoptimized` con container aspect-ratio
+  - Overlay hover: titolo, artista, badge museo (CSS puro)
+  - Skeleton shimmer durante caricamento immagine
   - Click → `/artwork/[id]`
 
-- [ ] **Infinite scroll** con `useInfiniteQuery` (TanStack Query):
-  - Intersection Observer su elemento sentinella
-  - Reset query su cambio filtri o ricerca
+- [x] **Infinite scroll** con `useInfiniteQuery` (TanStack Query v5):
+  - IntersectionObserver su sentinel sempre nel DOM (non dentro early return)
+  - Reset automatico al cambio query/filtri grazie alla queryKey di TanStack Query
+  - `fetchNextPage()` è no-op se `hasNextPage=false` — nessuna guardia esplicita necessaria
 
-- **Criterio completamento**: gallery con 100+ opere da 3+ musei, masonry fluido, infinite scroll, filtro per museo funzionante
+- [x] **Providers** (`app/providers.tsx`): QueryClientProvider con `staleTime: 60s`
+
+- **Criterio completamento**: ✅ gallery con opere da 4 musei, masonry fluido, infinite scroll, filtro per museo funzionante
 
 ---
 
@@ -419,7 +422,7 @@
 
 ## Fase 8 — Polish, demo, documentazione (Settimana 9)
 
-- [ ] Creare 3-5 storie demo pre-pubblicate (Rembrandt/Rijksmuseum, opera NGA, opera Chicago)
+- [ ] Creare 3-5 storie demo pre-pubblicate (Rembrandt/Rijksmuseum, opera Wellcome, opera Chicago)
 - [ ] Video demo 2 minuti
 - [ ] README finale con screenshot e GIF animate
 - [ ] Aggiornare `API.md` con tutti gli endpoint

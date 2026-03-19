@@ -10,9 +10,6 @@ import type {
   UnifiedArtwork,
 } from '@/types/museum';
 
-// MUSEUM_API: numero totale di provider attivi, usato per distribuire il limit
-const PROVIDER_COUNT = 5;
-
 /** Rimuove tag HTML, normalizza spazi e trim. */
 export function cleanText(text: string | null | undefined): string {
   if (!text) return '';
@@ -64,8 +61,10 @@ export async function aggregateSearch(
   adapters: MuseumAdapter[],
   params: MuseumSearchParams,
 ): Promise<MuseumSearchResult> {
-  // PERF: ogni provider riceve una quota del limit totale per bilanciare i risultati
-  const perProvider = Math.max(4, Math.ceil(params.limit / PROVIDER_COUNT));
+  // PERF: ogni provider riceve una quota del limit totale per bilanciare i risultati.
+  // Usa adapters.length (non una costante) così il calcolo è sempre corretto
+  // indipendentemente da quanti provider sono attivi o filtrati dall'utente.
+  const perProvider = Math.max(4, Math.ceil(params.limit / adapters.length));
   const perProviderParams: MuseumSearchParams = { ...params, limit: perProvider };
 
   const settled = await Promise.allSettled(

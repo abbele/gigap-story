@@ -103,7 +103,7 @@ Tutti i musei offrono API pubbliche senza autenticazione e supporto IIIF nativo.
 - **IIIF Presentation API 3.0** come formato di riferimento per i manifest
 - **W3C Web Annotation Data Model** per le annotazioni
 - **OpenSeadragon** come engine di rendering gigapixel
-- **Linked Art** per l'accesso ai dati Rijksmuseum
+- **OAI-PMH** per i metadati Rijksmuseum (Data Services 2025)
 
 ## Quick start
 
@@ -138,32 +138,48 @@ pnpm dev
 
 Apri [http://localhost:3000](http://localhost:3000).
 
+## Stato attuale
+
+| Componente                                  | Stato     |
+| ------------------------------------------- | --------- |
+| API musei aggregata (`/api/museums/search`) | ✅        |
+| Gallery masonry con infinite scroll         | ✅        |
+| Ricerca testuale con debounce               | ✅        |
+| Filtri per museo (chip multi-select)        | ✅        |
+| Pagina dettaglio opera + viewer IIIF        | 🚧 Fase 3 |
+| Editor autoriale (waypoint, testi)          | 🚧 Fase 5 |
+| Player narrazione pubblica                  | 🚧 Fase 6 |
+
 ## Struttura cartelle
 
 ```
-src/
-├── app/
-│   ├── page.tsx                    # Homepage con Gallery
-│   ├── artwork/[id]/page.tsx       # Dettaglio opera + viewer
-│   ├── editor/[artworkId]/page.tsx # Editor storia
-│   ├── story/[id]/page.tsx         # Fruizione pubblica storia
-│   ├── stories/page.tsx            # Listing storie pubbliche
-│   └── api/
-│       ├── museums/                # Aggregazione e normalizzazione musei
-│       └── stories/                # CRUD storie
-├── components/
-│   ├── gallery/                    # Gallery masonry, card, filtri
-│   ├── viewer/                     # OpenSeadragon wrapper e overlay
-│   ├── editor/                     # Editor autoriale
-│   ├── player/                     # Player narrazione
-│   └── stories/                    # Listing storie pubbliche
-├── hooks/
-├── lib/
-│   ├── museums/                    # Adapter e transformer per ogni museo
-│   ├── supabase/                   # Client e queries
-│   ├── iiif/                       # Utility IIIF
-│   └── cookies/                    # Gestione autore anonimo
-└── types/
+app/
+├── page.tsx                    # Homepage con Gallery
+├── providers.tsx               # TanStack Query provider
+├── artwork/[id]/page.tsx       # Dettaglio opera + viewer (Fase 3)
+├── editor/[artworkId]/page.tsx # Editor storia (Fase 5)
+├── story/[id]/page.tsx         # Fruizione pubblica storia (Fase 6)
+├── stories/page.tsx            # Listing storie pubbliche (Fase 6)
+└── api/
+    ├── museums/                # Aggregazione e normalizzazione musei ✅
+    └── stories/                # CRUD storie (Fase 5)
+components/
+├── gallery/                    # Gallery masonry, card, filtri, infinite scroll ✅
+├── viewer/                     # OpenSeadragon wrapper e overlay (Fase 3-4)
+├── editor/                     # Editor autoriale (Fase 5)
+├── player/                     # Player narrazione (Fase 4)
+└── stories/                    # Listing storie pubbliche (Fase 6)
+hooks/
+├── useMuseumSearch.ts          # useInfiniteQuery per la gallery ✅
+└── ...                         # useViewer, useStory, useAnonymousAuthor (fasi future)
+lib/
+├── museums/                    # Adapter e transformer per ogni museo ✅
+├── supabase/                   # Client e queries (Fase 5)
+├── iiif/                       # Utility IIIF (Fase 3)
+└── cookies/                    # Gestione autore anonimo (Fase 3)
+types/
+├── museum.ts                   # UnifiedArtwork, MuseumAdapter, ecc. ✅
+└── story.ts                    # Waypoint, Story (Fase 5)
 ```
 
 ## Licenza
