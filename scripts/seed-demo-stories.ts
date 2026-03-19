@@ -154,13 +154,19 @@ async function main() {
   loadEnvLocal();
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  // AUTH: lo script di seed richiede la service role key per bypassare i permessi anon.
+  // Aggiungila a .env.local: SUPABASE_SERVICE_ROLE_KEY=eyJ...
+  // Trovala su: Supabase Dashboard → Project Settings → API → service_role
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !supabaseKey) {
-    console.error('Errore: NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY mancanti.');
+    console.error(
+      'Errore: NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY mancanti.\n' +
+        '  Trovi la service role key su: Supabase Dashboard → Project Settings → API → service_role',
+    );
     process.exit(1);
   }
 
-  // SUPABASE: client diretto (non il singleton Next.js) — questo script gira fuori da Next
+  // SUPABASE: client con service role key — bypassa permessi anon, solo per script locali
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   console.log('→ Fetch Ronda di Notte da Rijksmuseum...');

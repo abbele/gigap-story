@@ -376,24 +376,26 @@
 
 ## Fase 5 — Editor autoriale (Settimane 5-6)
 
-- [ ] Pagina `/editor/[artworkId]` split-screen: viewer 60% / pannello 40%
-- [ ] Lista waypoint drag-and-drop (`@dnd-kit/sortable`): card con thumbnail + testo + durata
-- [ ] Pulsante "Cattura vista" → crea waypoint con viewport corrente
-- [ ] Editor testo Tiptap (toolbar: bold, italic, link)
-- [ ] Configurazione waypoint: durata (slider 1-15s), transizione (select)
-- [ ] **Salvataggio bozza su Supabase**:
-  - Prima apertura: `POST /api/stories` → crea bozza `draft`
+- [x] Pagina `/editor/[artworkId]` split-screen: viewer 60% / pannello 40%
+- [x] Lista waypoint drag-and-drop (`@dnd-kit/sortable`): card con thumbnail + testo + durata
+- [x] Pulsante "Cattura vista" → crea waypoint con viewport corrente + thumbnail canvas
+- [x] Editor testo Tiptap v3 (toolbar: bold, italic, link)
+- [x] Configurazione waypoint: durata (slider 1-15s), transizione (select ease/spring/linear)
+- [x] **Salvataggio bozza su Supabase**:
+  - Prima save: `POST /api/stories` → crea bozza `draft`
   - Autosave ogni 30s: `PUT /api/stories/[id]`
-  - Il cookie `author_cookie_id` viene passato nell'header `x-author-cookie-id`
-  - L'API route confronta l'header con `author_cookie_id` del record prima di ogni write
-  - Indicatore stato: "Salvato ✓" / "Salvando…" / "Non salvato ⚠️"
-- [ ] **Pulsante "Pubblica"**:
-  - Validazione: almeno 2 waypoint, titolo non vuoto
-  - Dialog di conferma → `PUT /api/stories/[id]` con `status: 'published'`
-  - Mostra link `/story/[id]` con pulsante copia
-- [ ] **Le mie bozze**: lista filtrata per `author_cookie_id`, riapre l'editor, elimina
+  - Header `x-author-cookie-id` su ogni write — API route verifica prima di aggiornare
+  - Hook `useEditorAutosave` gestisce il ciclo di vita: storyId, saveStatus, save, markUnsaved
+  - Indicatore stato: "✓ Salvato" / "↺ Salvando…" / "● Non salvato" / "⚠ Errore"
+- [x] **Pulsante "Pubblica"** (`PublishDialog`):
+  - Validazione client: titolo non vuoto + almeno 2 waypoint
+  - `PUT /api/stories/[id]` con `status: 'published'` (validazione anche server-side)
+  - Post-pubblicazione: link `/story/[id]` con pulsante copia
+- [x] **Le mie bozze** (`DraftsList`): overlay laterale, riapri (`?storyId=`), elimina
+- [x] API routes: `POST /api/stories`, `PUT /api/stories/[id]`, `DELETE /api/stories/[id]`
+  - AUTH: tutte le write verificano `x-author-cookie-id` contro `author_cookie_id` del record
 
-- **Criterio completamento**: flusso completo crea → salva → pubblica → link funzionante
+- **Criterio completamento**: ✅ flusso completo crea → cattura → scrivi → salva → pubblica → link funzionante
 
 ---
 

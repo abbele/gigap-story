@@ -150,21 +150,26 @@ Apri [http://localhost:3000](http://localhost:3000).
 
 ## Stato attuale
 
-| Componente                                  | Stato     |
-| ------------------------------------------- | --------- |
-| API musei aggregata (`/api/museums/search`) | ✅        |
-| Gallery masonry con infinite scroll         | ✅        |
-| Ricerca testuale con debounce               | ✅        |
-| Filtri per museo (chip multi-select)        | ✅        |
-| Pagina dettaglio opera + viewer IIIF        | ✅        |
-| Hook `useViewer` + `useStory`               | ✅        |
-| `StoryPlayer` (overlay, keyboard, touch)    | ✅        |
-| Demo story: La Ronda di Notte               | ✅        |
-| Pagina pubblica `/story/[id]` + OG tags     | ✅        |
-| Listing `/stories` con filtri e masonry     | ✅        |
-| API `/api/stories` (listing + singola)      | ✅        |
-| Condivisione: copia URL, X, WhatsApp        | ✅        |
-| Editor autoriale (waypoint, testi)          | 🚧 Fase 5 |
+| Componente                                  | Stato |
+| ------------------------------------------- | ----- |
+| API musei aggregata (`/api/museums/search`) | ✅    |
+| Gallery masonry con infinite scroll         | ✅    |
+| Ricerca testuale con debounce               | ✅    |
+| Filtri per museo (chip multi-select)        | ✅    |
+| Pagina dettaglio opera + viewer IIIF        | ✅    |
+| Hook `useViewer` + `useStory`               | ✅    |
+| `StoryPlayer` (overlay, keyboard, touch)    | ✅    |
+| Demo story: La Ronda di Notte               | ✅    |
+| Pagina pubblica `/story/[id]` + OG tags     | ✅    |
+| Listing `/stories` con filtri e masonry     | ✅    |
+| API `/api/stories` (listing + singola)      | ✅    |
+| Condivisione: copia URL, X, WhatsApp        | ✅    |
+| Pagina editor `/editor/[artworkId]`         | ✅    |
+| Editor Tiptap (bold, italic, link)          | ✅    |
+| Waypoint DnD (`@dnd-kit/sortable`)          | ✅    |
+| Autosave 30s + indicatore stato             | ✅    |
+| Pubblicazione + link condivisibile          | ✅    |
+| Le mie bozze (riapri, elimina)              | ✅    |
 
 ## Struttura cartelle
 
@@ -175,21 +180,22 @@ app/
 ├── artwork/[id]/page.tsx       # Dettaglio opera + viewer ✅
 ├── story/[id]/page.tsx         # Fruizione pubblica storia + OG ✅
 ├── stories/page.tsx            # Listing storie pubbliche ✅
-├── editor/[artworkId]/page.tsx # Editor storia (Fase 5)
+├── editor/[artworkId]/page.tsx # Editor storia ✅
 └── api/
     ├── museums/                # Aggregazione e normalizzazione musei ✅
-    └── stories/                # GET listing + GET singola storia ✅
+    └── stories/                # GET listing + GET singola + POST + PUT + DELETE ✅
 components/
 ├── gallery/                    # Gallery masonry, card, filtri, infinite scroll ✅
 ├── viewer/                     # GigapixelViewer, ArtworkDetailShell, StoryPlayer ✅
 ├── player/                     # StoryPublicShell (fruizione fullscreen) ✅
 ├── stories/                    # StoriesShell, StoryCard (listing /stories) ✅
-└── editor/                     # Editor autoriale (Fase 5)
+└── editor/                     # EditorShell, WaypointList, TiptapEditor, dialogs ✅
 hooks/
 ├── useMuseumSearch.ts          # useInfiniteQuery per la gallery ✅
 ├── useViewer.ts                # OpenSeadragon init, goToViewport, captureViewport ✅
 ├── useStory.ts                 # Playback waypoint, auto-advance, play/pause ✅
-└── useAnonymousAuthor.ts       # Cookie autore anonimo, displayName localStorage ✅
+├── useAnonymousAuthor.ts       # Cookie autore anonimo, displayName localStorage ✅
+└── useEditorAutosave.ts        # Autosave editor: POST bozza, PUT 30s, status ✅
 lib/
 ├── museums/                    # Adapter e transformer per ogni museo ✅
 ├── supabase/                   # Client, queries, tipi DB ✅
