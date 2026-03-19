@@ -344,33 +344,33 @@
 
 ## Fase 3 — Pagina dettaglio opera e avvio editor (Settimana 3-4)
 
-- [ ] Pagina `/artwork/[id]` con viewer OpenSeadragon + metadati + CTA "Crea una storia"
-- [ ] Input IIIF custom: campo per URL `info.json` da fonti esterne, con validazione
-- [ ] **Cookie autore anonimo** (`src/lib/cookies/author.ts` + `src/hooks/useAnonymousAuthor.ts`):
+- [x] Pagina `/artwork/[id]` con viewer OpenSeadragon + metadati + CTA "Crea una storia"
+- [x] Input IIIF custom: campo per URL `info.json` da fonti esterne, con validazione
+- [x] **Cookie autore anonimo** (`src/lib/cookies/author.ts` + `src/hooks/useAnonymousAuthor.ts`):
   - Genera UUID v4 al primo accesso, salva in cookie `author_id` (`maxAge: 365d`, `sameSite: lax`)
   - Hook `useAnonymousAuthor()` restituisce `{ cookieId, displayName, setDisplayName }`
   - Nome display opzionale salvato in localStorage
 
-- **Criterio completamento**: pagina dettaglio con viewer funzionante, pulsante "Crea storia" naviga all'editor con l'artwork precaricato
+- **Criterio completamento**: ✅ pagina dettaglio con viewer funzionante, pulsante "Crea storia" naviga all'editor con l'artwork precaricato
 
 ---
 
 ## Fase 4 — Core Viewer e navigazione animata (Settimana 4-5)
 
-- [ ] `<GigapixelViewer />` wrapper di OpenSeadragon
-- [ ] Hook `useViewer`:
-  - `goToViewport(rect, duration, easing)` — animazione via GSAP
+- [x] `<GigapixelViewer />` wrapper di OpenSeadragon
+- [x] Hook `useViewer`:
+  - `goToViewport(rect, duration, easing)` — animazione via OSD nativo (`fitBoundsWithConstraints`)
   - `getCurrentViewport()` — restituisce la vista corrente
   - `captureViewport()` — snapshot via `canvas.toDataURL()`
-- [ ] Hook `useStory`: `currentWaypointIndex`, `isPlaying`, `next()`, `prev()`, `play()`, `pause()`
-- [ ] `<StoryPlayer />`:
+- [x] Hook `useStory`: `currentWaypointIndex`, `isPlaying`, `next()`, `prev()`, `play()`, `pause()`
+- [x] `<StoryPlayer />`:
   - Overlay testo (bottom), indicatore progresso (dots), controlli play/pausa/avanti/indietro
   - Keyboard: frecce, spazio — Touch: swipe
-- [ ] Transizioni fluide:
-  - Se zoom cambia >3x: transizione 2-step (zoom out → pan → zoom in)
+- [x] Transizioni fluide:
+  - Se zoom cambia >3x: transizione 2-step (union bounding box → target)
   - Durata proporzionale alla distanza (0.8s–3s)
 
-- **Criterio completamento**: storia di 5 waypoint navigabile con animazioni fluide
+- **Criterio completamento**: ✅ storia di 6 waypoint navigabile con animazioni fluide (demo: La Ronda di Notte)
 
 ---
 
@@ -399,14 +399,17 @@
 
 ## Fase 6 — Fruizione pubblica e pagina storie (Settimane 6-7)
 
-- [ ] Pagina `/story/[id]`: fullscreen viewer + testo, carica solo storie `published`, 404 se draft
-- [ ] `generateMetadata()` per Open Graph (titolo, descrizione, thumbnail primo waypoint)
-- [ ] Incrementa `view_count` via `UPDATE` atomico
-- [ ] Pagina `/stories`: grid masonry di card storie pubblicate, filtri per museo e ordinamento
-- [ ] Link condivisibile: pulsante copia URL, share su X/WhatsApp (URL-based, no SDK)
-- [ ] Accessibilità: `aria-live="polite"` sul testo waypoint, focus management, alt text immagini
+- [x] Pagina `/story/[id]`: fullscreen viewer + testo, carica solo storie `published`, 404 se draft
+- [x] `generateMetadata()` per Open Graph (titolo, descrizione, thumbnail primo waypoint)
+- [x] Incrementa `view_count` via RPC atomica (`increment_view_count`) — fire and forget
+- [x] Pagina `/stories`: grid masonry di card storie pubblicate, filtri per museo e ordinamento
+- [x] API route `GET /api/stories` (listing con filtri provider/sort) + `GET /api/stories/[id]`
+- [x] Link condivisibile: pulsante copia URL, share su X/WhatsApp (URL-based, no SDK)
+- [x] Accessibilità: `aria-live="polite"` + `aria-atomic` sul testo waypoint in `StoryPlayer`
+- [x] Migrazione `002_grants.sql`: GRANT espliciti per il ruolo `anon` su tabella e RPC
+  - **Nota**: eseguire `002_grants.sql` su Supabase SQL Editor per risolvere "permission denied"
 
-- **Criterio completamento**: flusso end-to-end gallery → opera → editor → pubblica → fruizione pubblica con link condivisibile
+- **Criterio completamento**: ✅ flusso gallery → opera → fruizione pubblica con link condivisibile (editor Fase 5 ancora da completare per il flusso create → publish)
 
 ---
 
@@ -423,7 +426,8 @@
 
 ## Fase 8 — Polish, demo, documentazione (Settimana 9)
 
-- [ ] Creare 3-5 storie demo pre-pubblicate (Rembrandt/Rijksmuseum, opera Wellcome, opera Chicago)
+- [x] Demo story "La Ronda di Notte" (Rembrandt/Rijksmuseum) — 6 waypoint, inserita con `pnpm seed:demo`
+- [ ] Aggiungere storie demo per Wellcome e Chicago
 - [ ] Video demo 2 minuti
 - [ ] README finale con screenshot e GIF animate
 - [ ] Aggiornare `API.md` con tutti gli endpoint

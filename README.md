@@ -130,10 +130,20 @@ NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 ```
 
-Esegui le migration SQL su Supabase (vedi `supabase/migrations/`) poi:
+Esegui le migration SQL su Supabase (vedi `supabase/migrations/`) **nell'ordine corretto**:
+
+1. `001_init.sql` — crea la tabella `stories` e la funzione `increment_view_count`
+2. `002_grants.sql` — concede i permessi al ruolo `anon` (necessario per lettura/scrittura)
 
 ```bash
 pnpm dev
+```
+
+Per inserire la storia demo pre-pubblicata (La Ronda di Notte):
+
+```bash
+# Richiede SUPABASE_SERVICE_ROLE_KEY in .env.local
+pnpm seed:demo
 ```
 
 Apri [http://localhost:3000](http://localhost:3000).
@@ -146,9 +156,15 @@ Apri [http://localhost:3000](http://localhost:3000).
 | Gallery masonry con infinite scroll         | ✅        |
 | Ricerca testuale con debounce               | ✅        |
 | Filtri per museo (chip multi-select)        | ✅        |
-| Pagina dettaglio opera + viewer IIIF        | 🚧 Fase 3 |
+| Pagina dettaglio opera + viewer IIIF        | ✅        |
+| Hook `useViewer` + `useStory`               | ✅        |
+| `StoryPlayer` (overlay, keyboard, touch)    | ✅        |
+| Demo story: La Ronda di Notte               | ✅        |
+| Pagina pubblica `/story/[id]` + OG tags     | ✅        |
+| Listing `/stories` con filtri e masonry     | ✅        |
+| API `/api/stories` (listing + singola)      | ✅        |
+| Condivisione: copia URL, X, WhatsApp        | ✅        |
 | Editor autoriale (waypoint, testi)          | 🚧 Fase 5 |
-| Player narrazione pubblica                  | 🚧 Fase 6 |
 
 ## Struttura cartelle
 
@@ -156,30 +172,36 @@ Apri [http://localhost:3000](http://localhost:3000).
 app/
 ├── page.tsx                    # Homepage con Gallery
 ├── providers.tsx               # TanStack Query provider
-├── artwork/[id]/page.tsx       # Dettaglio opera + viewer (Fase 3)
+├── artwork/[id]/page.tsx       # Dettaglio opera + viewer ✅
+├── story/[id]/page.tsx         # Fruizione pubblica storia + OG ✅
+├── stories/page.tsx            # Listing storie pubbliche ✅
 ├── editor/[artworkId]/page.tsx # Editor storia (Fase 5)
-├── story/[id]/page.tsx         # Fruizione pubblica storia (Fase 6)
-├── stories/page.tsx            # Listing storie pubbliche (Fase 6)
 └── api/
     ├── museums/                # Aggregazione e normalizzazione musei ✅
-    └── stories/                # CRUD storie (Fase 5)
+    └── stories/                # GET listing + GET singola storia ✅
 components/
 ├── gallery/                    # Gallery masonry, card, filtri, infinite scroll ✅
-├── viewer/                     # OpenSeadragon wrapper e overlay (Fase 3-4)
-├── editor/                     # Editor autoriale (Fase 5)
-├── player/                     # Player narrazione (Fase 4)
-└── stories/                    # Listing storie pubbliche (Fase 6)
+├── viewer/                     # GigapixelViewer, ArtworkDetailShell, StoryPlayer ✅
+├── player/                     # StoryPublicShell (fruizione fullscreen) ✅
+├── stories/                    # StoriesShell, StoryCard (listing /stories) ✅
+└── editor/                     # Editor autoriale (Fase 5)
 hooks/
 ├── useMuseumSearch.ts          # useInfiniteQuery per la gallery ✅
-└── ...                         # useViewer, useStory, useAnonymousAuthor (fasi future)
+├── useViewer.ts                # OpenSeadragon init, goToViewport, captureViewport ✅
+├── useStory.ts                 # Playback waypoint, auto-advance, play/pause ✅
+└── useAnonymousAuthor.ts       # Cookie autore anonimo, displayName localStorage ✅
 lib/
 ├── museums/                    # Adapter e transformer per ogni museo ✅
-├── supabase/                   # Client e queries (Fase 5)
-├── iiif/                       # Utility IIIF (Fase 3)
-└── cookies/                    # Gestione autore anonimo (Fase 3)
+├── supabase/                   # Client, queries, tipi DB ✅
+└── cookies/                    # Gestione autore anonimo ✅
+scripts/
+└── seed-demo-stories.ts        # Inserisce la storia demo Ronda di Notte ✅
+supabase/migrations/
+├── 001_init.sql                # Tabella stories + funzione increment_view_count ✅
+└── 002_grants.sql              # GRANT permessi al ruolo anon ✅
 types/
 ├── museum.ts                   # UnifiedArtwork, MuseumAdapter, ecc. ✅
-└── story.ts                    # Waypoint, Story (Fase 5)
+└── story.ts                    # Waypoint, Story ✅
 ```
 
 ## Licenza

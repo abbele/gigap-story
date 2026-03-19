@@ -23,6 +23,45 @@ export async function getPublishedStories(page = 1, limit = 20): Promise<Story[]
   return (data ?? []).map(rowToStory);
 }
 
+/**
+ * Recupera storie pubblicate con filtri opzionali e conteggio totale.
+ * Usata dalla pagina /stories e dall'API route GET /api/stories.
+ */
+export async function getPublishedStoriesPage(params: {
+  page?: number;
+  limit?: number;
+  /** Filtra per provider museo (es. 'chicago', 'rijksmuseum') */
+  provider?: string;
+  /** 'recent' = ordina per published_at desc, 'popular' = ordina per view_count desc */
+  sort?: 'recent' | 'popular';
+}): Promise<{ stories: Story[]; total: number }> {
+  const page = params.page ?? 1;
+  const limit = params.limit ?? 20;
+  const from = (page - 1) * limit;
+
+  // SUPABASE: select con count per paginazione
+  let query = supabase.from('stories').select('*', { count: 'exact' }).eq('status', 'published');
+
+  if (params.provider) {
+    // SUPABASE: filtra per provider dentro il JSONB artwork_data
+    query = query.eq('artwork_data->>provider' as Parameters<typeof query.eq>[0], params.provider);
+  }
+
+  if (params.sort === 'popular') {
+    query = query.order('view_count', { ascending: false });
+  } else {
+    query = query.order('published_at', { ascending: false });
+  }
+
+  const { data, error, count } = await query.range(from, from + limit - 1);
+
+  if (error) throw error;
+  return {
+    stories: (data ?? []).map(rowToStory),
+    total: count ?? 0,
+  };
+}
+
 /** Recupera una storia per ID. Restituisce null se non trovata. */
 export async function getStoryById(id: string): Promise<Story | null> {
   const { data, error } = await supabase.from('stories').select('*').eq('id', id).single();

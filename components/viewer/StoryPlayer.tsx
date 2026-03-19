@@ -130,13 +130,18 @@ export default function StoryPlayer({
 
           {/* UX: testo HTML da Tiptap — il contenuto proviene dal nostro editor,
               non da input utente grezzo, quindi dangerouslySetInnerHTML è accettabile.
-              La pagina di fruizione è in sola lettura. */}
+              La pagina di fruizione è in sola lettura.
+              aria-live="polite" notifica il testo ai lettori di schermo al cambio waypoint. */}
           {currentWaypoint.text && (
             <div
               className="text-sm text-[#f0ede8] font-sans leading-relaxed max-h-32 overflow-y-auto mb-4
                          prose prose-invert prose-sm max-w-none
                          prose-p:my-1 prose-strong:text-[#e8c832] prose-em:text-zinc-300"
               dangerouslySetInnerHTML={{ __html: currentWaypoint.text }}
+              aria-live="polite"
+              aria-atomic="true"
+              role="region"
+              aria-label={`Testo waypoint ${currentWaypointIndex + 1}`}
             />
           )}
 
