@@ -34,3 +34,12 @@ create index idx_stories_author on stories (author_cookie_id);
 -- Indice parziale per la pagina /stories (solo published, ordinati per data)
 create index idx_stories_published on stories (published_at desc)
   where status = 'published';
+
+-- PERF: funzione RPC per incrementare view_count in modo atomico,
+-- evitando race conditions rispetto a un read-then-write dal client
+create or replace function increment_view_count(story_id uuid)
+returns void
+language sql
+as $$
+  update stories set view_count = view_count + 1 where id = story_id;
+$$;

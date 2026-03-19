@@ -2,12 +2,15 @@
 
 ## Fase 0 — Setup e infrastruttura (Settimana 1)
 
-- [ ] Setup linting e pre-commit hooks:
+- [x] Setup linting e pre-commit hooks:
+
   ```bash
   pnpm add -D eslint prettier husky lint-staged @typescript-eslint/eslint-plugin @typescript-eslint/parser
   pnpm exec husky init
   ```
+
   Configura `lint-staged` in `package.json`:
+
   ```json
   "lint-staged": {
     "*.{ts,tsx}": ["eslint --fix", "prettier --write"],
@@ -15,13 +18,14 @@
   }
   ```
 
-- [ ] Installazione dipendenze core:
+- [x] Installazione dipendenze core:
+
   ```bash
   pnpm add openseadragon gsap @tanstack/react-query @tiptap/react @tiptap/pm @tiptap/starter-kit @dnd-kit/core @dnd-kit/sortable js-cookie
   pnpm add -D @types/openseadragon @types/js-cookie
   ```
 
-- [ ] Setup Supabase:
+- [x] Setup Supabase:
   - Crea un nuovo progetto su [supabase.com](https://supabase.com) (free tier, regione EU West)
   - Installa il client: `pnpm add @supabase/supabase-js`
   - Aggiungi a `.env.local`:
@@ -32,15 +36,16 @@
   - Crea le tabelle con le migration SQL (vedi sezione Database sotto)
   - **Nota sicurezza**: le autorizzazioni per bozze e storie sono gestite nelle API routes Next.js tramite il cookie `x-author-cookie-id`. Supabase RLS è disabilitato per semplicità. Vedi `// TODO: @fase-futura RLS` nella roadmap.
 
-- [ ] Setup GitHub + repository:
+- [x] Setup GitHub + repository:
   - Crea repository pubblico su GitHub: `gigap-story`
   - Aggiungi `.gitignore` (già generato da create-next-app)
   - Aggiungi a `.gitignore`: `.env.local`, `.env*.local`
   - Push del commit iniziale: `git remote add origin ... && git push -u origin main`
   - Configura branch protection su `main`: richiedi PR + 1 review + CI verde
 
-- [ ] Setup CI/CD con GitHub Actions:
-  Crea `.github/workflows/ci.yml`:
+- [x] Setup CI/CD con GitHub Actions:
+      Crea `.github/workflows/ci.yml`:
+
   ```yaml
   name: CI
   on:
@@ -67,15 +72,17 @@
         NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
   ```
+
   - Aggiungi i secret GitHub (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) in Settings → Secrets → Actions.
 
-- [ ] Deploy Vercel:
+- [x] Deploy Vercel:
   - Connetti il repository GitHub a Vercel (import project)
   - Configura le env vars in Vercel Dashboard: stesse variabili di `.env.local`
   - Ogni push su `main` fa deploy automatico in produzione
   - Ogni PR genera un preview URL automatico (Vercel Preview Deployments)
 
-- [ ] Setup struttura cartelle:
+- [x] Setup struttura cartelle:
+
   ```
   src/
   ├── app/
@@ -127,7 +134,7 @@
       └── story.ts
   ```
 
-- [ ] Definire i tipi TypeScript fondamentali in `src/types/`:
+- [x] Definire i tipi TypeScript fondamentali in `types/`:
 
   ```typescript
   // === src/types/museum.ts ===
@@ -135,28 +142,28 @@
   type MuseumProvider = 'chicago' | 'rijksmuseum' | 'nga' | 'wellcome' | 'ycba';
 
   interface UnifiedArtwork {
-    id: string;                    // Provider-prefixed: "chicago_12345"
+    id: string; // Provider-prefixed: "chicago_12345"
     provider: MuseumProvider;
     title: string;
     artist: string;
-    date: string;                  // "c. 1503" o "1889"
-    medium: string;                // "Oil on canvas"
+    date: string; // "c. 1503" o "1889"
+    medium: string; // "Oil on canvas"
     dimensions?: string;
-    imageUrl: string;              // Thumbnail per gallery card
-    imageUrlLarge: string;         // Immagine ad alta risoluzione
-    iiifInfoUrl: string;           // IIIF info.json URL (obbligatorio — filtriamo le opere senza)
-    iiifManifestUrl?: string;      // IIIF manifest URL se disponibile
-    sourceUrl: string;             // Link al sito del museo per l'opera
+    imageUrl: string; // Thumbnail per gallery card
+    imageUrlLarge: string; // Immagine ad alta risoluzione
+    iiifInfoUrl: string; // IIIF info.json URL (obbligatorio — filtriamo le opere senza)
+    iiifManifestUrl?: string; // IIIF manifest URL se disponibile
+    sourceUrl: string; // Link al sito del museo per l'opera
     museum: {
-      name: string;                // "Art Institute of Chicago"
-      shortName: string;           // "AIC"
+      name: string; // "Art Institute of Chicago"
+      shortName: string; // "AIC"
       city: string;
       country: string;
     };
     tags?: string[];
     department?: string;
-    classification?: string;       // "Painting", "Drawing", ecc.
-    aspectRatio?: number;          // width/height per il masonry layout
+    classification?: string; // "Painting", "Drawing", ecc.
+    aspectRatio?: number; // width/height per il masonry layout
   }
 
   interface MuseumSearchParams {
@@ -188,40 +195,41 @@
   interface Waypoint {
     id: string;
     viewport: { x: number; y: number; width: number; height: number };
-    text: string;                  // Rich text HTML (da Tiptap)
-    duration: number;              // Secondi di permanenza
+    text: string; // Rich text HTML (da Tiptap)
+    duration: number; // Secondi di permanenza
     transition: 'ease' | 'linear' | 'spring';
-    thumbnailDataUrl?: string;     // Base64 thumbnail della vista
+    thumbnailDataUrl?: string; // Base64 thumbnail della vista
   }
 
   type StoryStatus = 'draft' | 'published';
 
   interface Story {
-    id: string;                    // UUID da Supabase
+    id: string; // UUID da Supabase
     status: StoryStatus;
     title: string;
     description: string;
     authorCookieId: string;
     authorDisplayName?: string;
     artwork: UnifiedArtwork;
-    imageSource: string;           // IIIF info.json URL
+    imageSource: string; // IIIF info.json URL
     waypoints: Waypoint[];
     createdAt: string;
     updatedAt: string;
     publishedAt?: string;
     viewCount?: number;
-    coverThumbnail?: string;       // Thumbnail del primo waypoint
+    coverThumbnail?: string; // Thumbnail del primo waypoint
   }
 
   // === src/types/author.ts ===
 
   interface AnonymousAuthor {
-    cookieId: string;              // UUID v4 salvato in cookie client-side
+    cookieId: string; // UUID v4 salvato in cookie client-side
     displayName?: string;
   }
   ```
 
-- [ ] Setup database Supabase — esegui su SQL Editor di Supabase:
+- [x] Setup database Supabase — esegui su SQL Editor di Supabase:
+
   ```sql
   -- Tabella storie
   create table stories (
@@ -248,6 +256,7 @@
   -- RLS disabilitata — i permessi sono gestiti nelle API routes Next.js
   -- TODO: @fase-futura — migrare a RLS nativo Supabase (vedi sezione apposita in fondo)
   ```
+
   Salva il file SQL in `supabase/migrations/001_init.sql` e committalo.
 
 - **Criterio completamento**: progetto avviabile con `pnpm dev`, CI verde su GitHub, Supabase connesso, preview Vercel funzionante
