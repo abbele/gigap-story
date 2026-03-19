@@ -3,8 +3,13 @@
 // IIIF:     https://www.rijksmuseum.nl/api/iiif-img/{objectNumber}.jpg/info.json
 // Manifest: https://www.rijksmuseum.nl/api/iiif/{objectNumber}/manifest.json
 // Auth:     nessuna API key — usa l'endpoint SPARQL pubblico del Data Hub
-// Limiti:   risultati limitati a dipinti (prov:wasPresentAt + schema:artform "Painting")
 // Doc:      https://data.rijksmuseum.nl/
+//
+// ⚠️  STATO: non operativo — l'endpoint SPARQL restituisce 404/405 nelle prove effettuate.
+//     L'API REST classica (www.rijksmuseum.nl/api/en/collection) è deprecata (410 Gone).
+//     Il codice è implementato correttamente; il problema è infrastrutturale lato Rijksmuseum.
+//     TODO @fase-futura: verificare nuovo endpoint SPARQL o migrare ad approccio manifest IIIF
+//     con lista curata di object number (simile all'adapter YCBA).
 
 import type { MuseumAdapter, MuseumSearchParams, UnifiedArtwork } from '@/types/museum';
 import { calcAspectRatio, cleanText } from './transformer';

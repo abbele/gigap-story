@@ -1,9 +1,15 @@
 // MUSEUM_API: National Gallery of Art (Washington D.C.)
-// Search:   https://api.nga.gov/art/tms/objects (pubblica, no key)
-// IIIF:     https://api.nga.gov/iiif/{iiifId}/info.json
+// Search:   https://api.nga.gov/art/tms/objects (TENTATO — non esiste, vedi stato)
+// IIIF:     https://api.nga.gov/iiif/{iiifId}/info.json (server IIIF funzionante)
 // Auth:     pubblica, nessuna API key richiesta
-// Limiti:   rate limit non documentato — usa max 50 risultati per richiesta
-// Doc:      https://api.nga.gov/
+// Doc:      https://api.nga.gov/ | Open data: https://github.com/NationalGalleryOfArt/opendata
+//
+// ⚠️  STATO: non operativo — l'endpoint REST `api.nga.gov/art/tms/objects` non esiste (404).
+//     La NGA non espone un'API REST pubblica per la ricerca in tempo reale.
+//     Il server IIIF (`api.nga.gov/iiif/{uuid}/info.json`) funziona correttamente.
+//     TODO @fase-futura: implementare via CSV open data GitHub (NationalGalleryOfArt/opendata).
+//     Il file `published_images.csv` contiene gli UUID IIIF — approccio: download + cache 24h
+//     + filtro in-memory (simile all'adapter YCBA).
 
 import type { MuseumAdapter, MuseumSearchParams, UnifiedArtwork } from '@/types/museum';
 import { calcAspectRatio, cleanText } from './transformer';

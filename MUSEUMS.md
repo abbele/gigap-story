@@ -56,7 +56,7 @@ https://www.artic.edu/iiif/2/{image_id}/info.json
 
 **Cos'è SPARQL?** È un linguaggio di query per basi di dati che organizzano il sapere come una rete di connessioni (ontologie), invece che come tabelle. Invece di `SELECT * FROM artworks WHERE title LIKE '%rembrandt%'` scrivi `SELECT ?opera WHERE { ?opera dc:title ?titolo . FILTER(CONTAINS(?titolo, "rembrandt")) }`. Il Data Hub del Rijksmuseum espone i dati del suo catalogo come grafo interrogabile in SPARQL, senza richiedere chiavi API.
 
-**Perché SPARQL invece dell'API classica**: l'API classica del Rijksmuseum richiede una API key (gratuita ma con processo di registrazione), il che aggiunge attrito all'onboarding. Il Data Hub SPARQL è pubblico e non richiede registrazione. Per un progetto open source, ridurre le barriere di setup è importante.
+**Perché SPARQL invece dell'API classica**: l'API classica del Rijksmuseum (`www.rijksmuseum.nl/api/en/collection`) è stata ritirata nel 2024 (risponde 410 Gone). Il Data Hub SPARQL è l'alternativa pubblica consigliata, senza API key.
 
 **IIIF**: il server immagini del Rijksmuseum segue il pattern:
 
@@ -66,7 +66,9 @@ https://www.rijksmuseum.nl/api/iiif-img/{objectNumber}.jpg/info.json
 
 L'object number (es. `SK-C-5` per "De Nachtwacht") è presente nei risultati SPARQL come `dc:identifier`.
 
-**Limitazioni**: SPARQL può essere più lento di una REST API classica. Il filtro per dipinti si basa sul campo `dc:type` che può avere varianti linguistiche ("schilderij" in olandese, "painting" in inglese).
+**Stato attuale**: ⚠️ L'endpoint SPARQL (`data.rijksmuseum.nl/sparql`) restituisce 404 con GET e 405 con POST nelle prove effettuate. Probabilmente il Data Hub è in fase di migrazione o ha restrizioni di accesso da IP server. Il codice dell'adapter è implementato correttamente — il problema è infrastrutturale lato Rijksmuseum.
+
+**TODO @fase-futura**: verificare il nuovo endpoint SPARQL del Data Hub, oppure migrare a un accesso diretto ai manifest IIIF tramite una lista curata di object number (approccio simile a YCBA).
 
 ---
 
@@ -74,17 +76,13 @@ L'object number (es. `SK-C-5` per "De Nachtwacht") è presente nei risultati SPA
 
 **File**: [lib/museums/nga.ts](lib/museums/nga.ts)
 
-**Come espone i dati**: REST API pubblica senza autenticazione. Endpoint `/art/tms/objects` con parametri GET standard. Supporto IIIF nativo.
+**Come espone i dati**: la NGA ha un progetto GitHub di open data (`NationalGalleryOfArt/opendata`) con CSV aggiornati quotidianamente, e un server IIIF funzionante (`https://api.nga.gov/iiif/{uuid}/info.json`). Non esiste però un endpoint REST pubblico per la ricerca in tempo reale.
 
-**Perché questo approccio**: API semplice, documentata, stabile e totalmente pubblica. Il parametro `only_open_access=1` filtra automaticamente le opere con licenza aperta. Il campo `iiifThumbUrl` nella risposta contiene già un URL da cui possiamo estrarre l'ID IIIF, costruendo `info.json` senza fetch aggiuntivi.
+**Perché questo approccio**: il codice implementa un endpoint REST che si è rivelato inesistente al momento del test (`api.nga.gov/art/tms/objects` → 404). Il server IIIF funziona, ma senza una API di ricerca non possiamo scoprire gli UUID.
 
-**IIIF**: l'ID IIIF si estrae dal campo `iiifThumbUrl`:
+**Stato attuale**: ❌ Il provider non restituisce risultati. Il IIIF server è funzionante ma la ricerca è bloccata dalla mancanza di un endpoint REST.
 
-```
-https://api.nga.gov/iiif/{uuid}/info.json
-```
-
-**Limitazioni**: le specifiche del rate limit non sono documentate pubblicamente.
+**TODO @fase-futura**: implementare un adapter basato sul CSV open data della NGA (scaricato e cachato 24h), simile all'approccio YCBA. Il CSV `published_images.csv` include gli UUID IIIF necessari. Repo: https://github.com/NationalGalleryOfArt/opendata
 
 ---
 
@@ -112,38 +110,46 @@ https://iiif.wellcomecollection.org/image/{imageId}/info.json
 
 **File**: [lib/museums/ycba.ts](lib/museums/ycba.ts)
 
-**Come espone i dati**: **OAI-PMH** — un protocollo completamente diverso dagli altri.
+**Come espone i dati**: originariamente tramite **OAI-PMH** (dismesso nel 2023-2024), ora tramite **IIIF Presentation API 3**. Ogni opera ha un manifest JSON accessibile pubblicamente.
 
-**Cos'è OAI-PMH?** Open Archives Initiative Protocol for Metadata Harvesting è uno standard per la _raccolta_ (harvesting) di metadati da archivi digitali. Non è pensato per la ricerca in tempo reale: è pensato per trasferire grandi volumi di metadati da un repository a un altro (es. da un museo a un aggregatore come Europeana). Funziona così:
+**Cos'è OAI-PMH?** Open Archives Initiative Protocol for Metadata Harvesting è uno standard per la _raccolta_ (harvesting) di metadati da archivi digitali. Non è pensato per la ricerca in tempo reale: è pensato per trasferire grandi volumi di metadati da un repository a un altro (es. da un museo a un aggregatore come Europeana). Il YCBA usava questo protocollo, ma l'endpoint (`collections.britishart.yale.edu/oai`) è stato dismesso.
 
-- Si fa una richiesta GET con `verb=ListRecords` e si riceve un blocco di record XML
-- Se ci sono altri record, la risposta include un `resumptionToken`
-- Si fa un'altra richiesta con quel token per ottenere il blocco successivo
-- Si ripete finché non ci sono più token
+**Approccio attuale — IIIF Manifest API**: fetchamo in parallelo una lista curata di ~40 manifest IIIF di dipinti YCBA noti. Ogni manifest è un documento JSON che descrive l'opera e include il riferimento al server IIIF Image API. Estraiamo titolo, artista, data e UUID dell'immagine da ogni manifest, cachiamo il risultato per 24h, e filtriamo in-memory per le ricerche.
 
-**Perché OAI-PMH per YCBA**: il YCBA non offre una REST API pubblica per la ricerca in tempo reale. L'unico accesso strutturato ai metadati del loro catalogo è tramite OAI-PMH (e i manifest IIIF). Per questo progetto, scarichiamo la prima pagina di record OAI-PMH, la cachiamo per 24 ore, e filtriamo in memoria. È un approccio pragmatico che funziona per i volumi di questo progetto.
-
-**Parser XML custom**: Node.js (l'ambiente server di Next.js) non include un parser XML nativo come fanno i browser. Per non aggiungere dipendenze, usiamo espressioni regolari (regex) per estrarre i campi Dublin Core (`<dc:title>`, `<dc:creator>`, ecc.) dall'XML. Questo va bene per un formato strutturato e prevedibile come l'OAI-PMH Dublin Core.
-
-**IIIF**: il server immagini di Yale usa un formato URN:
+Il manifest di un'opera YCBA è a:
 
 ```
-https://images.collections.yale.edu/iiif/2/ycba:obj:{id}/info.json
+https://manifests.collections.yale.edu/ycba/obj/{id}
 ```
 
-**Limitazioni**: senza ricerca server-side, la rilevanza dei risultati dipende dalla qualità del filtro in memoria. Il harvest iniziale può essere lento alla prima richiesta (poi viene cachato). Solo la prima pagina OAI-PMH viene scaricata — circa 100 opere.
+All'interno del manifest, la struttura IIIF Presentation API 3 è:
+
+```
+items[0].items[0].items[0].body.service[0]["@id"]
+→ "https://images.collections.yale.edu/iiif/2/ycba:{uuid}"
+```
+
+**IIIF**: il server immagini di Yale usa un UUID (non l'object ID):
+
+```
+https://images.collections.yale.edu/iiif/2/ycba:{uuid}/info.json
+```
+
+**Limitazioni**: solo ~40 opere nel set campionato (quelle con ID numerici noti e verificati). La copertura della collezione è parziale. Il primo caricamento è lento (fetch parallelo di 40+ manifest). I manifest successivi vengono serviti dalla cache.
+
+**TODO @fase-futura**: integrare il sistema **LUX** di Yale (`lux.collections.yale.edu`) quando la loro API JSON-LD sarà stabile e documentata — permetterebbe ricerca full-text su tutta la collezione YCBA.
 
 ---
 
 ## Tabella riassuntiva
 
-| Museo                       | Sigla | Protocollo           | Auth | IIIF nativo      | File                                         |
-| --------------------------- | ----- | -------------------- | ---- | ---------------- | -------------------------------------------- |
-| Art Institute of Chicago    | AIC   | REST + Elasticsearch | No   | ✅ Completo      | [chicago.ts](lib/museums/chicago.ts)         |
-| Rijksmuseum                 | RKS   | SPARQL (Linked Data) | No   | ✅ Con pattern   | [rijksmuseum.ts](lib/museums/rijksmuseum.ts) |
-| National Gallery of Art     | NGA   | REST                 | No   | ✅ Completo      | [nga.ts](lib/museums/nga.ts)                 |
-| Wellcome Collection         | WC    | REST                 | No   | ✅ Dal thumbnail | [wellcome.ts](lib/museums/wellcome.ts)       |
-| Yale Center for British Art | YCBA  | OAI-PMH + cache      | No   | ✅ Con pattern   | [ycba.ts](lib/museums/ycba.ts)               |
+| Museo                       | Sigla | Protocollo            | Auth | IIIF nativo      | File                                  |
+| --------------------------- | ----- | --------------------- | ---- | ---------------- | ------------------------------------- | -------------------------------------------- |
+| Art Institute of Chicago    | AIC   | REST + Elasticsearch  | No   | ✅ Completo      | ✅ Attivo                             | [chicago.ts](lib/museums/chicago.ts)         |
+| Rijksmuseum                 | RKS   | SPARQL (Data Hub)     | No   | ✅ Con pattern   | ⚠️ Non raggiungibile (SPARQL 405/404) | [rijksmuseum.ts](lib/museums/rijksmuseum.ts) |
+| National Gallery of Art     | NGA   | REST                  | No   | ✅ Con pattern   | ❌ Endpoint inesistente (404)         | [nga.ts](lib/museums/nga.ts)                 |
+| Wellcome Collection         | WC    | REST                  | No   | ✅ Dal thumbnail | ✅ Attivo                             | [wellcome.ts](lib/museums/wellcome.ts)       |
+| Yale Center for British Art | YCBA  | IIIF Manifest (fetch) | No   | ✅ Da manifest   | ✅ Attivo                             | [ycba.ts](lib/museums/ycba.ts)               |
 
 ---
 
