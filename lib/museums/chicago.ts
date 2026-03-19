@@ -56,7 +56,8 @@ export const chicagoAdapter: MuseumAdapter = {
     // MUSEUM_API: costruisce la query Elasticsearch — filtro obbligatorio per dipinti pubblici
     const mustClauses: unknown[] = [
       { term: { is_public_domain: true } },
-      { term: { artwork_type_title: 'Painting' } },
+      // MUSEUM_API: usa il subfield .keyword per term queries su campi text in Elasticsearch
+      { term: { 'artwork_type_title.keyword': 'Painting' } },
     ];
     if (params.query) {
       mustClauses.push({

@@ -47,8 +47,9 @@ export const wellcomeAdapter: MuseumAdapter = {
     url.searchParams.set('workType', 'k');
     url.searchParams.set('pageSize', String(Math.min(params.limit, 100)));
     url.searchParams.set('page', String(params.page));
-    // MUSEUM_API: includiamo i campi necessari tramite include parameter
-    url.searchParams.set('include', 'contributors,productionDates,subjects,thumbnail');
+    // MUSEUM_API: include validi v2 — 'production' sostituisce 'productionDates', 'images' è opzionale
+    // Il campo thumbnail è restituito di default senza bisogno di include esplicito
+    url.searchParams.set('include', 'contributors,production,subjects');
     if (params.query) url.searchParams.set('query', params.query);
 
     const res = await fetch(url.toString(), {

@@ -319,7 +319,9 @@
   - `revalidate = 3600` a livello di route segment per search e artwork
   - Per YCBA: `unstable_cache` con TTL 24h per l'harvest OAI-PMH
 
-- **Criterio completamento**: `GET /api/museums/search?q=rembrandt&limit=20` restituisce risultati da almeno 3 musei in formato `UnifiedArtwork` unificato
+- **Criterio completamento**: ✅ `GET /api/museums/search?q=portrait&limit=20` restituisce risultati da **3 musei** (Chicago, Wellcome, YCBA) in formato `UnifiedArtwork` unificato
+  - Rijksmuseum: API REST deprecata (410), SPARQL endpoint non raggiungibile — TODO @fase-futura
+  - NGA: endpoint `api.nga.gov/art/tms/objects` inesistente — TODO @fase-futura (CSV open data)
 
 ---
 
