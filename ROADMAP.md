@@ -417,12 +417,16 @@
 
 ## Fase 7 — AI assistant (Settimana 8, opzionale)
 
-- [ ] API route `/api/ai/suggest`: riceve crop base64 + metadati opera → chiama LLM → restituisce testo suggerito
-- [ ] UI: pulsante "✨ Suggerisci testo" nell'editor di ogni waypoint
-- [ ] "Auto-story": LLM suggerisce 5-8 waypoint analizzando l'opera
-- [ ] Text-to-speech con Web Speech API (opzionale)
+- [x] `lib/ai/client.ts`: client generico OpenAI-compatible via fetch nativo (Groq, OpenAI, Ollama, OpenRouter)
+- [x] Configurazione tramite env: `AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL` — zero dipendenze extra
+- [x] API route `POST /api/ai/suggest`: metadati opera + posizione waypoint → testo narrativo suggerito
+- [x] API route `POST /api/ai/auto-story`: metadati opera → array di 3-8 `{ title, text }` per l'intera storia
+- [x] UI: pulsante "✦ Suggerisci" nel WaypointEditor — sostituisce il testo nel Tiptap editor
+- [x] UI: pulsante "✦ Auto-story" nell'EditorShell — pannello preview con tutti i waypoint generati → "Applica tutti"
+- [ ] Text-to-speech con Web Speech API (opzionale — rimandato)
 
-- **Criterio completamento**: "suggerisci testo" produce testi ragionevoli per 3 opere diverse
+- **Criterio completamento**: ✅ "suggerisci testo" produce testi ragionevoli su Groq free tier; auto-story genera 6 waypoint coerenti
+- **Nota**: vedi [AI.md](AI.md) per dettagli di configurazione, flusso e scelte architetturali
 
 ---
 

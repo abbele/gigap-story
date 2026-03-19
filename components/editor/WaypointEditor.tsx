@@ -3,7 +3,9 @@
 // UX: Editor del singolo waypoint.
 // Mostra il TiptapEditor per il testo, lo slider durata (1-15s),
 // il select transizione e il pulsante "Aggiorna viewport".
+// AI: pulsante opzionale "Suggerisci testo" — usa onSuggestText se fornito.
 
+import { useState } from 'react';
 import TiptapEditor from './TiptapEditor';
 import type { Waypoint } from '@/types/story';
 
@@ -16,6 +18,8 @@ interface WaypointEditorProps {
   /** Aggiorna il viewport del waypoint alla vista corrente del viewer */
   onCaptureViewport: () => void;
   onClose: () => void;
+  /** AI: callback che chiama /api/ai/suggest — undefined se AI non configurata */
+  onSuggestText?: () => Promise<string>;
 }
 
 /**
@@ -41,7 +45,26 @@ export default function WaypointEditor({
   onChange,
   onCaptureViewport,
   onClose,
+  onSuggestText,
 }: WaypointEditorProps) {
+  // AI: stato locale per loading/errore del suggerimento testo
+  const [isSuggesting, setIsSuggesting] = useState(false);
+  const [suggestError, setSuggestError] = useState<string | null>(null);
+
+  const handleSuggest = async () => {
+    if (!onSuggestText) return;
+    setIsSuggesting(true);
+    setSuggestError(null);
+    try {
+      const text = await onSuggestText();
+      onChange({ text });
+    } catch {
+      setSuggestError('Errore generazione testo');
+    } finally {
+      setIsSuggesting(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4">
       {/* Header: indice + chiudi */}
@@ -64,10 +87,24 @@ export default function WaypointEditor({
 
       {/* Testo ricco */}
       <div>
-        <label className="block text-[9px] font-mono tracking-[0.3em] uppercase text-zinc-600 mb-1.5">
-          Testo
-        </label>
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="text-[9px] font-mono tracking-[0.3em] uppercase text-zinc-600">
+            Testo
+          </label>
+          {/* AI: pulsante suggerisci — visibile solo se il provider è configurato */}
+          {onSuggestText && (
+            <button
+              type="button"
+              onClick={handleSuggest}
+              disabled={isSuggesting}
+              className="text-[9px] font-mono tracking-widest uppercase text-zinc-600 hover:text-[#e8c832] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              {isSuggesting ? '… generando' : '✦ Suggerisci'}
+            </button>
+          )}
+        </div>
         <TiptapEditor content={waypoint.text} onChange={(html) => onChange({ text: html })} />
+        {suggestError && <p className="mt-1 text-[9px] font-mono text-red-500">{suggestError}</p>}
       </div>
 
       {/* Durata */}

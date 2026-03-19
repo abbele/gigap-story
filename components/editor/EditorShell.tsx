@@ -10,6 +10,11 @@
 //   3. Clicca su una card → apre WaypointEditor
 //   4. Autosave ogni 30s (markUnsaved a ogni modifica)
 //   5. Pubblica → PublishDialog → link condivisibile
+//
+// AI (fase 7):
+//   - "✦ Suggerisci" nel WaypointEditor → POST /api/ai/suggest → testo waypoint
+//   - "✦ Auto-story" → POST /api/ai/auto-story → pannello con 3-8 suggerimenti
+//     → "Applica" crea waypoint con testi AI + viewport corrente (da aggiornare)
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -81,6 +86,13 @@ export default function EditorShell({ artwork, initialStory }: EditorShellProps)
   // ── UI state ─────────────────────────────────────────────────────
   const [isPublishOpen, setPublishOpen] = useState(false);
   const [isDraftsOpen, setDraftsOpen] = useState(false);
+
+  // AI: stato pannello auto-story
+  const [autoStorySuggestions, setAutoStorySuggestions] = useState<
+    { title: string; text: string }[] | null
+  >(null);
+  const [isAutoStoryLoading, setAutoStoryLoading] = useState(false);
+  const [autoStoryError, setAutoStoryError] = useState<string | null>(null);
 
   // ── Autosave ──────────────────────────────────────────────────────
   const { storyId, saveStatus, save, markUnsaved } = useEditorAutosave({
@@ -229,6 +241,78 @@ export default function EditorShell({ artwork, initialStory }: EditorShellProps)
   const activeWaypoint = waypoints.find((w) => w.id === activeWaypointId) ?? null;
   const activeWaypointIndex = waypoints.findIndex((w) => w.id === activeWaypointId);
 
+  // AI: suggerisci testo per il waypoint attivo — passato a WaypointEditor come callback
+  const handleSuggestText = useCallback(async (): Promise<string> => {
+    const res = await fetch('/api/ai/suggest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        artworkTitle: artwork.title,
+        artworkArtist: artwork.artist,
+        artworkDate: artwork.date,
+        waypointIndex: activeWaypointIndex,
+        totalWaypoints: waypoints.length,
+        existingText: activeWaypoint?.text,
+      }),
+    });
+    const data = (await res.json()) as { text?: string; error?: string };
+    if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+    return data.text ?? '';
+  }, [artwork, activeWaypointIndex, waypoints.length, activeWaypoint?.text]);
+
+  // AI: genera suggerimenti per l'intera storia
+  const handleAutoStory = useCallback(async () => {
+    setAutoStoryLoading(true);
+    setAutoStoryError(null);
+    try {
+      const res = await fetch('/api/ai/auto-story', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          artworkTitle: artwork.title,
+          artworkArtist: artwork.artist,
+          artworkDate: artwork.date,
+          artworkMedium: artwork.medium,
+          waypointCount: 6,
+        }),
+      });
+      const data = (await res.json()) as {
+        suggestions?: { title: string; text: string }[];
+        error?: string;
+      };
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setAutoStorySuggestions(data.suggestions ?? []);
+    } catch (err) {
+      setAutoStoryError(err instanceof Error ? err.message : 'Errore AI');
+    } finally {
+      setAutoStoryLoading(false);
+    }
+  }, [artwork]);
+
+  // AI: applica i suggerimenti auto-story — crea waypoint con viewport corrente
+  const handleApplyAutoStory = useCallback(() => {
+    if (!autoStorySuggestions) return;
+    const viewport = getCurrentViewport();
+    if (!viewport) return;
+    const thumbnailDataUrl = captureViewport() ?? undefined;
+
+    const newWaypoints: Waypoint[] = autoStorySuggestions.map((s) => ({
+      id: generateId(),
+      viewport,
+      text: s.text,
+      duration: 5,
+      transition: 'ease' as const,
+      thumbnailDataUrl,
+    }));
+
+    setWaypoints((prev) => {
+      const updated = [...prev, ...newWaypoints];
+      markUnsaved();
+      return updated;
+    });
+    setAutoStorySuggestions(null);
+  }, [autoStorySuggestions, getCurrentViewport, captureViewport, markUnsaved]);
+
   return (
     <>
       <div className="flex flex-col lg:flex-row h-full bg-[#080808] overflow-hidden">
@@ -289,8 +373,8 @@ export default function EditorShell({ artwork, initialStory }: EditorShellProps)
               />
             </div>
 
-            {/* Pulsante "Cattura vista" */}
-            <div className="px-4 py-3 border-b-2 border-[#2a2a2a]">
+            {/* Pulsante "Cattura vista" + Auto-story */}
+            <div className="px-4 py-3 border-b-2 border-[#2a2a2a] flex flex-col gap-2">
               <button
                 type="button"
                 onClick={handleCaptureVista}
@@ -299,12 +383,65 @@ export default function EditorShell({ artwork, initialStory }: EditorShellProps)
               >
                 + Cattura vista corrente
               </button>
+              {/* AI: auto-story genera 6 waypoint con testi suggeriti */}
+              <button
+                type="button"
+                onClick={handleAutoStory}
+                disabled={!isReady || isAutoStoryLoading}
+                className="w-full py-2 border-2 border-[#2a2a2a] text-zinc-500 hover:border-zinc-500 hover:text-zinc-300 font-mono text-[9px] tracking-[0.25em] uppercase disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                {isAutoStoryLoading ? '… generando storia' : '✦ Auto-story'}
+              </button>
+              {autoStoryError && (
+                <p className="text-[9px] font-mono text-red-500 text-center">{autoStoryError}</p>
+              )}
               {!isReady && (
-                <p className="mt-1.5 text-[9px] font-mono text-zinc-700 text-center">
+                <p className="text-[9px] font-mono text-zinc-700 text-center">
                   Attendere il caricamento del viewer…
                 </p>
               )}
             </div>
+
+            {/* AI: pannello suggerimenti auto-story */}
+            {autoStorySuggestions && (
+              <div className="px-4 py-3 border-b-2 border-[#2a2a2a] flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-mono tracking-[0.3em] uppercase text-[#e8c832]">
+                    ✦ Suggerimenti AI — {autoStorySuggestions.length} waypoint
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setAutoStorySuggestions(null)}
+                    className="text-zinc-700 hover:text-zinc-400 font-mono text-xs transition-colors"
+                    aria-label="Chiudi suggerimenti"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <ul className="space-y-2">
+                  {autoStorySuggestions.map((s, i) => (
+                    <li key={i} className="border border-[#2a2a2a] px-3 py-2">
+                      <p className="text-[9px] font-mono text-[#e8c832] tracking-widest uppercase mb-0.5">
+                        {i + 1}. {s.title}
+                      </p>
+                      <p className="text-[10px] font-mono text-zinc-500 leading-relaxed line-clamp-2">
+                        {s.text}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-[9px] font-mono text-zinc-700 text-center">
+                  I viewport verranno impostati alla vista corrente — aggiornali dopo.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleApplyAutoStory}
+                  className="w-full py-2 bg-[#e8c832] text-black font-mono font-bold text-[9px] tracking-widest uppercase hover:bg-[#f0d040] transition-colors"
+                >
+                  Applica tutti
+                </button>
+              </div>
+            )}
 
             {/* Lista waypoint o editor waypoint */}
             <div className="flex-1 px-4 py-4">
@@ -315,6 +452,7 @@ export default function EditorShell({ artwork, initialStory }: EditorShellProps)
                   onChange={(updates) => updateWaypoint(activeWaypoint.id, updates)}
                   onCaptureViewport={handleCaptureViewportForActive}
                   onClose={() => setActiveWaypointId(null)}
+                  onSuggestText={handleSuggestText}
                 />
               ) : (
                 <WaypointList

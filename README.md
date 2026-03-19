@@ -80,22 +80,23 @@ Tutti i musei offrono API pubbliche senza autenticazione e supporto IIIF nativo.
 
 ## Tecnologie
 
-| Categoria              | Scelta                             |
-| ---------------------- | ---------------------------------- |
-| Framework              | Next.js 16 (App Router) + React 19 |
-| Linguaggio             | TypeScript 5                       |
-| Package manager        | pnpm                               |
-| CSS                    | Tailwind CSS v4                    |
-| Componenti             | Custom (no component library)      |
-| Viewer gigapixel       | OpenSeadragon                      |
-| Animazioni transizioni | GSAP                               |
-| Data fetching          | TanStack Query (React Query)       |
-| Editor testo           | Tiptap                             |
-| Drag & drop            | @dnd-kit/sortable                  |
-| Database               | Supabase (PostgreSQL)              |
-| Deploy                 | Vercel                             |
-| CI/CD                  | GitHub Actions                     |
-| Repo                   | GitHub (MIT)                       |
+| Categoria              | Scelta                                                       |
+| ---------------------- | ------------------------------------------------------------ |
+| Framework              | Next.js 16 (App Router) + React 19                           |
+| Linguaggio             | TypeScript 5                                                 |
+| Package manager        | pnpm                                                         |
+| CSS                    | Tailwind CSS v4                                              |
+| Componenti             | Custom (no component library)                                |
+| Viewer gigapixel       | OpenSeadragon                                                |
+| Animazioni transizioni | GSAP                                                         |
+| Data fetching          | TanStack Query (React Query)                                 |
+| Editor testo           | Tiptap                                                       |
+| AI (opzionale)         | Qualsiasi provider OpenAI-compatible (Groq, OpenAI, Ollama…) |
+| Drag & drop            | @dnd-kit/sortable                                            |
+| Database               | Supabase (PostgreSQL)                                        |
+| Deploy                 | Vercel                                                       |
+| CI/CD                  | GitHub Actions                                               |
+| Repo                   | GitHub (MIT)                                                 |
 
 ## Viewer gigapixel — ottimizzazioni OpenSeadragon
 
@@ -162,6 +163,16 @@ Esegui le migration SQL su Supabase (vedi `supabase/migrations/`) **nell'ordine 
 
 1. `001_init.sql` — crea la tabella `stories` e la funzione `increment_view_count`
 2. `002_grants.sql` — concede i permessi al ruolo `anon` (necessario per lettura/scrittura)
+
+Per abilitare il modulo AI (facoltativo), aggiungi a `.env.local`:
+
+```env
+AI_BASE_URL=https://api.groq.com/openai/v1   # default — Groq è gratuito
+AI_API_KEY=gsk_...                            # API key del provider scelto
+AI_MODEL=llama-3.1-8b-instant                # default Groq; cambia per altri provider
+```
+
+> Vedi [AI.md](AI.md) per la lista completa dei provider supportati e il dettaglio del flusso.
 
 ```bash
 pnpm dev
