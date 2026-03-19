@@ -73,6 +73,8 @@ export function useViewer(iiifInfoUrl: string): UseViewerReturn {
       viewer = new OSD.Viewer({
         element: containerRef.current,
         tileSources: iiifInfoUrl,
+        // IIIF: cross-origin necessario per AIC, Wellcome, Rijksmuseum
+        crossOriginPolicy: 'Anonymous',
         // UX: nessun controllo nativo — li gestiamo noi
         showNavigationControl: false,
         showZoomControl: false,
@@ -80,15 +82,18 @@ export function useViewer(iiifInfoUrl: string): UseViewerReturn {
         showFullPageControl: false,
         showRotationControl: false,
         showSequenceControl: false,
-        // PERF: configurazione animazione — molla reattiva per transizioni fluide
-        springStiffness: 12,
-        animationTime: 1.0,
-        visibilityRatio: 0.8,
-        minZoomImageRatio: 0.3,
+        // PERF: molla morbida (6.5 vs default 12) — animazioni fluide senza rimbalzo
+        springStiffness: 6.5,
+        // PERF: 0.5s è reattivo senza essere brusco; blendTime ammorbidisce il tile fade-in
+        animationTime: 0.5,
+        blendTime: 0.15,
+        // UX: visibilityRatio basso = libertà totale di pan fino ai bordi
+        visibilityRatio: 0.3,
+        minZoomImageRatio: 0.5,
         maxZoomPixelRatio: 4,
-        // UX: abilita gesture multi-touch su mobile
-        gestureSettingsMouse: { clickToZoom: false },
-        gestureSettingsTouch: { pinchRotate: false },
+        // UX: doppio click/tap per zoom; flick su touch per pan inerzia
+        gestureSettingsMouse: { clickToZoom: false, dblClickToZoom: true },
+        gestureSettingsTouch: { pinchRotate: false, flickEnabled: true, dblClickToZoom: true },
       }) as OpenSeadragon.Viewer;
 
       viewer.addHandler('open', () => {
@@ -154,8 +159,9 @@ export function useViewer(iiifInfoUrl: string): UseViewerReturn {
         );
         viewer.viewport.fitBoundsWithConstraints(unionRect);
 
-        // PERF: durata step 1 proporzionale al duration totale (mai oltre 1.5s)
-        const step1Ms = Math.min(duration * 0.5 * 1000, 1500);
+        // PERF: step 1 deve finire prima che OSD completi l'animazione (animationTime 0.5s)
+        // minimo 650ms per lasciare la molla stabilizzarsi + buffer
+        const step1Ms = Math.max(650, Math.min(duration * 0.5 * 1000, 900));
         setTimeout(() => {
           viewerRef.current?.viewport.fitBoundsWithConstraints(target);
         }, step1Ms);
@@ -179,10 +185,11 @@ export function useViewer(iiifInfoUrl: string): UseViewerReturn {
     const viewer = viewerRef.current;
     if (!viewer) return null;
     try {
-      // IIIF: OSD renderizza su canvas — toDataURL cattura la vista corrente
+      // IIIF: OSD renderizza su canvas — JPEG 0.7 riduce da ~400KB a ~40KB vs PNG
+      // evita RangeError nel logger Next.js quando le thumbnail finiscono nei log
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const canvas = (viewer.drawer as any).canvas as HTMLCanvasElement | undefined;
-      return canvas?.toDataURL('image/png') ?? null;
+      return canvas?.toDataURL('image/jpeg', 0.7) ?? null;
     } catch {
       return null;
     }

@@ -97,6 +97,34 @@ Tutti i musei offrono API pubbliche senza autenticazione e supporto IIIF nativo.
 | CI/CD                  | GitHub Actions                     |
 | Repo                   | GitHub (MIT)                       |
 
+## Viewer gigapixel — ottimizzazioni OpenSeadragon
+
+Il viewer è gestito da `hooks/useViewer.ts`. I parametri OSD sono stati calibrati per massimizzare la fluidità delle animazioni:
+
+| Parametro           | Valore                 | Perché                                                                                                                                          |
+| ------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `springStiffness`   | `6.5`                  | Molla più morbida rispetto al default (12): nessun rimbalzo, transizioni che sembrano fisicamente naturali                                      |
+| `animationTime`     | `0.5`                  | Reattivo senza essere brusco — 1s era percepito come lento, 0.5s è il punto di equilibrio                                                       |
+| `blendTime`         | `0.15`                 | Fade-in delle tile durante il caricamento: evita il flicker dei quadranti che appaiono di scatto                                                |
+| `crossOriginPolicy` | `'Anonymous'`          | Obbligatorio per IIIF cross-origin (AIC, Wellcome, Rijksmuseum) — senza questo il canvas è tainted e `captureViewport` fallisce silenziosamente |
+| `visibilityRatio`   | `0.3`                  | L'utente può pannare fino ai bordi dell'immagine senza che OSD rimbalzi al centro                                                               |
+| `minZoomImageRatio` | `0.5`                  | Impedisce di zoomare così tanto da vedere solo sfondo nero attorno all'immagine                                                                 |
+| `dblClickToZoom`    | `true` (mouse + touch) | Zoom rapido con doppio click/tap, comportamento atteso su gigapixel viewer                                                                      |
+| `flickEnabled`      | `true` (touch)         | Pan con inerzia su mobile — sensazione nativa simile a Google Maps                                                                              |
+
+### Transizione a 2 step
+
+Quando il rapporto di zoom tra posizione corrente e destinazione supera 3×, `goToViewport` usa una strategia a 2 step invece di animare direttamente:
+
+1. **Step 1**: zoom out fino al bounding box dell'unione tra posizione corrente e target — l'utente capisce dove sta andando
+2. **Step 2** (dopo ≥650ms): zoom in sul target — arriva nel posto giusto con contesto
+
+Questo evita il "teletrasporto disorientante" quando si salta tra waypoint lontani o a scale molto diverse. Il minimo di 650ms è calibrato sull'`animationTime: 0.5` (la molla ha bisogno di ~500ms + buffer per stabilizzarsi prima di partire con il secondo movimento).
+
+### Thumbnail JPEG vs PNG
+
+`captureViewport` produce le thumbnail dei waypoint in JPEG 0.7 anziché PNG. Un'immagine PNG della vista corrente pesa ~400KB in base64; JPEG 0.7 scende a ~30-50KB con qualità visivamente identica per una card. Questo previene un `RangeError: Invalid string length` nel logger del dev server di Next.js, che crasha quando accumula entries con payload troppo grandi.
+
 ## Protocolli e standard
 
 - **IIIF Image API 2/3** per il rendering delle immagini

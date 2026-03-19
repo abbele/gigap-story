@@ -134,9 +134,12 @@ export const rijksmuseumAdapter: MuseumAdapter = {
 
     const json: RMASearchResponse = await res.json();
 
-    // Prendiamo più IDs del necessario per compensare quelli senza immagine
+    // PERF: la Search API restituisce al massimo 100 items in un colpo solo.
+    // Usiamo params.page per sliceare offset diversi così ogni pagina ottiene IDs distinti.
+    // Over-fetch x3 per compensare i record senza micrioId (scartati da parseOaiDcXml).
+    const offset = (params.page - 1) * params.limit;
     const ids = json.orderedItems
-      .slice(0, Math.min(params.limit * 3, json.orderedItems.length))
+      .slice(offset, Math.min(offset + params.limit * 3, json.orderedItems.length))
       .map((item) => extractNumericId(item.id))
       .filter((id): id is string => !!id);
 
