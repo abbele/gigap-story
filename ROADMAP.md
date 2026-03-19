@@ -265,7 +265,7 @@
 
 ## Fase 1 — Museum API Aggregator e Transformer (Settimane 1-2)
 
-- [ ] Implementare i 5 adapter museali in `src/lib/museums/`:
+- [x] Implementare i 5 adapter museali in `lib/museums/`:
 
   **Chicago** (`chicago.ts`):
   - Search: `https://api.artic.edu/api/v1/artworks/search`
@@ -305,19 +305,19 @@
   - Strategia: **harvest una tantum** via OAI-PMH → salva lista opere in cache (`unstable_cache` o file statico), poi filtra in-memory. Non è real-time ma è sufficiente per il progetto.
   - Doc: https://britishart.yale.edu/collections-data-sharing
 
-- [ ] Implementare il **transformer** (`src/lib/museums/transformer.ts`):
+- [x] Implementare il **transformer** (`lib/museums/transformer.ts`):
   - Ogni adapter implementa `MuseumAdapter`
   - `transformToUnified()` mappa i campi specifici dell'API in `UnifiedArtwork`
   - Gestisci edge case: artista sconosciuto → `"Anonimo"`, date mancanti → `""`, `iiifInfoUrl` assente → scarta l'opera
   - Filtra obbligatoriamente le opere senza `iiifInfoUrl`: questo progetto richiede IIIF per il viewer
 
-- [ ] Implementare le **API routes**:
+- [x] Implementare le **API routes**:
   - `GET /api/museums/search` — aggrega tutti i musei in parallelo (`Promise.allSettled`), timeout 5s per provider, cache 1h
   - `GET /api/museums/artwork/[id]` — parse del prefix (`chicago_12345` → adapter Chicago con id `12345`)
 
-- [ ] Caching:
-  - Usa `unstable_cache` di Next.js per cachare i risultati museali (TTL: 3600s)
-  - Per YCBA: harvest OAI-PMH cachato con TTL 24h (i dati cambiano raramente)
+- [x] Caching:
+  - `revalidate = 3600` a livello di route segment per search e artwork
+  - Per YCBA: `unstable_cache` con TTL 24h per l'harvest OAI-PMH
 
 - **Criterio completamento**: `GET /api/museums/search?q=rembrandt&limit=20` restituisce risultati da almeno 3 musei in formato `UnifiedArtwork` unificato
 

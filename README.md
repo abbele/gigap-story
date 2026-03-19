@@ -62,13 +62,15 @@ Pagina `/stories` con tutte le storie pubblicate. Filtri per opera, museo, autor
 
 Tutti e 5 i musei offrono API pubbliche senza autenticazione e supporto IIIF nativo. Il backend (Next.js API routes) aggrega e normalizza i dati in un formato unificato.
 
-| Museo                                   | API                                | Auth | IIIF    | Stato |
-| --------------------------------------- | ---------------------------------- | ---- | ------- | ----- |
-| Art Institute of Chicago                | REST                               | No   | Sì (v2) | 🚧    |
-| Rijksmuseum                             | Linked Art Search + IIIF Discovery | No   | Sì      | 🚧    |
-| National Gallery of Art (Washington DC) | REST                               | No   | Sì      | 🚧    |
-| Wellcome Collection                     | Catalogue REST                     | No   | Sì      | 🚧    |
-| Yale Center for British Art             | OAI-PMH + IIIF manifests           | No   | Sì      | 🚧    |
+| Museo                                   | API                  | Auth | IIIF    | Stato |
+| --------------------------------------- | -------------------- | ---- | ------- | ----- |
+| Art Institute of Chicago                | REST + Elasticsearch | No   | Sì (v2) | ✅    |
+| Rijksmuseum                             | SPARQL (Data Hub)    | No   | Sì      | ✅    |
+| National Gallery of Art (Washington DC) | REST                 | No   | Sì      | ✅    |
+| Wellcome Collection                     | Catalogue REST       | No   | Sì      | ✅    |
+| Yale Center for British Art             | OAI-PMH + cache 24h  | No   | Sì      | ✅    |
+
+> Vedi [MUSEUMS.md](MUSEUMS.md) per la spiegazione dettagliata di ogni protocollo e la guida all'aggiunta di nuovi musei.
 
 ### Persistenza (Supabase)
 
