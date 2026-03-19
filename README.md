@@ -4,7 +4,7 @@
 
 ## Cos'è
 
-Gigapixel Storyteller è una piattaforma web open source per creare e fruire narrazioni visive guidate all'interno di dipinti ad altissima risoluzione (gigapixel). Aggrega opere da 5 musei internazionali in una gallery unificata, e permette a chiunque di scegliere un'opera e costruirci sopra un percorso narrativo animato — zoomando nei dettagli, raccontando storie, e pubblicandolo per il mondo.
+Gigapixel Storyteller è una piattaforma web open source per creare e fruire narrazioni visive guidate all'interno di dipinti ad altissima risoluzione (gigapixel). Aggrega opere da 4 musei internazionali in una gallery unificata, e permette a chiunque di scegliere un'opera e costruirci sopra un percorso narrativo animato — zoomando nei dettagli, raccontando storie, e pubblicandolo per il mondo.
 
 ## A chi è rivolto
 
@@ -30,7 +30,7 @@ Le immagini gigapixel dei dipinti sono straordinarie ma restano confinate in vie
 
 ### 1. Esplora la Gallery
 
-La homepage presenta una gallery masonry di opere aggregate da 5 musei. Puoi filtrare per museo, artista, epoca, tecnica. Scroll infinito. Ogni card mostra: immagine, titolo, artista, museo di provenienza.
+La homepage presenta una gallery masonry di opere aggregate da 4 musei. Puoi filtrare per museo, artista, epoca, tecnica. Scroll infinito. Ogni card mostra: immagine, titolo, artista, museo di provenienza.
 
 ### 2. Scegli un'opera
 
@@ -60,15 +60,14 @@ Pagina `/stories` con tutte le storie pubblicate. Filtri per opera, museo, autor
 
 ### API Musei (aggregazione)
 
-Tutti e 5 i musei offrono API pubbliche senza autenticazione e supporto IIIF nativo. Il backend (Next.js API routes) aggrega e normalizza i dati in un formato unificato.
+Tutti i musei offrono API pubbliche senza autenticazione e supporto IIIF nativo. Il backend (Next.js API routes) aggrega e normalizza i dati in un formato unificato.
 
-| Museo                                   | API                  | Auth | IIIF    | Stato |
-| --------------------------------------- | -------------------- | ---- | ------- | ----- |
-| Art Institute of Chicago                | REST + Elasticsearch | No   | Sì (v2) | ✅    |
-| Rijksmuseum                             | SPARQL (Data Hub)    | No   | Sì      | ✅    |
-| National Gallery of Art (Washington DC) | REST                 | No   | Sì      | ✅    |
-| Wellcome Collection                     | Catalogue REST       | No   | Sì      | ✅    |
-| Yale Center for British Art             | OAI-PMH + cache 24h  | No   | Sì      | ✅    |
+| Museo                       | API                           | Auth | IIIF    | Stato |
+| --------------------------- | ----------------------------- | ---- | ------- | ----- |
+| Art Institute of Chicago    | REST + Elasticsearch          | No   | Sì (v2) | ✅    |
+| Rijksmuseum                 | Search API + OAI-PMH + Micrio | No   | Sì      | ✅    |
+| Wellcome Collection         | Catalogue REST                | No   | Sì      | ✅    |
+| Yale Center for British Art | IIIF Manifest + cache 24h     | No   | Sì      | ✅    |
 
 > Vedi [MUSEUMS.md](MUSEUMS.md) per la spiegazione dettagliata di ogni protocollo e la guida all'aggiunta di nuovi musei.
 

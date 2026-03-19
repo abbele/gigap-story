@@ -1,6 +1,6 @@
 # Come i musei espongono i dati — e perché abbiamo scelto ogni approccio
 
-Questo documento spiega, in linguaggio accessibile, i protocolli usati dai 5 musei integrati in Gigapixel Storyteller, le motivazioni tecniche che ci hanno portato a ogni scelta, e una guida pratica per aggiungere nuovi musei.
+Questo documento spiega, in linguaggio accessibile, i protocolli usati dai 4 musei integrati in Gigapixel Storyteller, le motivazioni tecniche che ci hanno portato a ogni scelta, e una guida pratica per aggiungere nuovi musei.
 
 ---
 
@@ -52,41 +52,27 @@ https://www.artic.edu/iiif/2/{image_id}/info.json
 
 **File**: [lib/museums/rijksmuseum.ts](lib/museums/rijksmuseum.ts)
 
-**Come espone i dati**: il Rijksmuseum ha un'API classica (richiede API key gratuita) ma anche un **Data Hub** pubblico basato su **Linked Data** e **SPARQL**.
+**Come espone i dati**: il Rijksmuseum ha un **Data Hub** pubblico (2025) basato su **Linked Data**. La ricerca avviene via Search API REST; i metadati vengono recuperati via **OAI-PMH** GetRecord per ogni opera; le immagini sono servite da **Micrio**, un server IIIF Image API compatibile con OpenSeadragon.
 
-**Cos'è SPARQL?** È un linguaggio di query per basi di dati che organizzano il sapere come una rete di connessioni (ontologie), invece che come tabelle. Invece di `SELECT * FROM artworks WHERE title LIKE '%rembrandt%'` scrivi `SELECT ?opera WHERE { ?opera dc:title ?titolo . FILTER(CONTAINS(?titolo, "rembrandt")) }`. Il Data Hub del Rijksmuseum espone i dati del suo catalogo come grafo interrogabile in SPARQL, senza richiedere chiavi API.
+**Cos'è OAI-PMH?** Open Archives Initiative Protocol for Metadata Harvesting è uno standard per la raccolta di metadati da archivi digitali. Ogni record è identificato da un URI Linked Data (es. `https://id.rijksmuseum.nl/200100988`). Facciamo una chiamata `GetRecord` per ogni ID e otteniamo XML Dublin Core con titolo, artista, data, materiale e — crucialmente — il link Micrio da cui estraiamo il `micrioId` IIIF.
 
-**Perché SPARQL invece dell'API classica**: l'API classica del Rijksmuseum (`www.rijksmuseum.nl/api/en/collection`) è stata ritirata nel 2024 (risponde 410 Gone). Il Data Hub SPARQL è l'alternativa pubblica consigliata, senza API key.
+**Flusso in tre passi**:
 
-**IIIF**: il server immagini del Rijksmuseum segue il pattern:
+1. `GET https://data.rijksmuseum.nl/search/collection?type=painting&title={query}` → lista di Linked Data ID
+2. `GET https://data.rijksmuseum.nl/oai?verb=GetRecord&metadataPrefix=oai_dc&identifier=https://id.rijksmuseum.nl/{id}` → XML con `dc:relation` contenente l'URL Micrio
+3. Estrai `micrioId` → `https://iiif.micr.io/{micrioId}/info.json`
+
+**IIIF**: Micrio è un server IIIF Image API standard, compatibile con OpenSeadragon:
 
 ```
-https://www.rijksmuseum.nl/api/iiif-img/{objectNumber}.jpg/info.json
+https://iiif.micr.io/{micrioId}/info.json
 ```
 
-L'object number (es. `SK-C-5` per "De Nachtwacht") è presente nei risultati SPARQL come `dc:identifier`.
-
-**Stato attuale**: ⚠️ L'endpoint SPARQL (`data.rijksmuseum.nl/sparql`) restituisce 404 con GET e 405 con POST nelle prove effettuate. Probabilmente il Data Hub è in fase di migrazione o ha restrizioni di accesso da IP server. Il codice dell'adapter è implementato correttamente — il problema è infrastrutturale lato Rijksmuseum.
-
-**TODO @fase-futura**: verificare il nuovo endpoint SPARQL del Data Hub, oppure migrare a un accesso diretto ai manifest IIIF tramite una lista curata di object number (approccio simile a YCBA).
+**Stato attuale**: ✅ Attivo — nuova architettura Data Services 2025.
 
 ---
 
-### 3. National Gallery of Art (NGA, Washington D.C.)
-
-**File**: [lib/museums/nga.ts](lib/museums/nga.ts)
-
-**Come espone i dati**: la NGA ha un progetto GitHub di open data (`NationalGalleryOfArt/opendata`) con CSV aggiornati quotidianamente, e un server IIIF funzionante (`https://api.nga.gov/iiif/{uuid}/info.json`). Non esiste però un endpoint REST pubblico per la ricerca in tempo reale.
-
-**Perché questo approccio**: il codice implementa un endpoint REST che si è rivelato inesistente al momento del test (`api.nga.gov/art/tms/objects` → 404). Il server IIIF funziona, ma senza una API di ricerca non possiamo scoprire gli UUID.
-
-**Stato attuale**: ❌ Il provider non restituisce risultati. Il IIIF server è funzionante ma la ricerca è bloccata dalla mancanza di un endpoint REST.
-
-**TODO @fase-futura**: implementare un adapter basato sul CSV open data della NGA (scaricato e cachato 24h), simile all'approccio YCBA. Il CSV `published_images.csv` include gli UUID IIIF necessari. Repo: https://github.com/NationalGalleryOfArt/opendata
-
----
-
-### 4. Wellcome Collection (Londra)
+### 3. Wellcome Collection (Londra)
 
 **File**: [lib/museums/wellcome.ts](lib/museums/wellcome.ts)
 
@@ -106,7 +92,7 @@ https://iiif.wellcomecollection.org/image/{imageId}/info.json
 
 ---
 
-### 5. Yale Center for British Art (YCBA)
+### 4. Yale Center for British Art (YCBA)
 
 **File**: [lib/museums/ycba.ts](lib/museums/ycba.ts)
 
@@ -143,13 +129,12 @@ https://images.collections.yale.edu/iiif/2/ycba:{uuid}/info.json
 
 ## Tabella riassuntiva
 
-| Museo                       | Sigla | Protocollo            | Auth | IIIF nativo      | File                                  |
-| --------------------------- | ----- | --------------------- | ---- | ---------------- | ------------------------------------- | -------------------------------------------- |
-| Art Institute of Chicago    | AIC   | REST + Elasticsearch  | No   | ✅ Completo      | ✅ Attivo                             | [chicago.ts](lib/museums/chicago.ts)         |
-| Rijksmuseum                 | RKS   | SPARQL (Data Hub)     | No   | ✅ Con pattern   | ⚠️ Non raggiungibile (SPARQL 405/404) | [rijksmuseum.ts](lib/museums/rijksmuseum.ts) |
-| National Gallery of Art     | NGA   | REST                  | No   | ✅ Con pattern   | ❌ Endpoint inesistente (404)         | [nga.ts](lib/museums/nga.ts)                 |
-| Wellcome Collection         | WC    | REST                  | No   | ✅ Dal thumbnail | ✅ Attivo                             | [wellcome.ts](lib/museums/wellcome.ts)       |
-| Yale Center for British Art | YCBA  | IIIF Manifest (fetch) | No   | ✅ Da manifest   | ✅ Attivo                             | [ycba.ts](lib/museums/ycba.ts)               |
+| Museo                       | Sigla | Protocollo                    | Auth | IIIF             | Stato     | File                                         |
+| --------------------------- | ----- | ----------------------------- | ---- | ---------------- | --------- | -------------------------------------------- |
+| Art Institute of Chicago    | AIC   | REST + Elasticsearch          | No   | ✅ Completo      | ✅ Attivo | [chicago.ts](lib/museums/chicago.ts)         |
+| Rijksmuseum                 | RKS   | Search API + OAI-PMH + Micrio | No   | ✅ Micrio IIIF   | ✅ Attivo | [rijksmuseum.ts](lib/museums/rijksmuseum.ts) |
+| Wellcome Collection         | WC    | REST                          | No   | ✅ Dal thumbnail | ✅ Attivo | [wellcome.ts](lib/museums/wellcome.ts)       |
+| Yale Center for British Art | YCBA  | IIIF Manifest (fetch)         | No   | ✅ Da manifest   | ✅ Attivo | [ycba.ts](lib/museums/ycba.ts)               |
 
 ---
 
@@ -177,13 +162,7 @@ Fai queste domande sull'API del museo:
 In [types/museum.ts](types/museum.ts):
 
 ```typescript
-export type MuseumProvider =
-  | 'chicago'
-  | 'rijksmuseum'
-  | 'nga'
-  | 'wellcome'
-  | 'ycba'
-  | 'nome_nuovo_museo'; // ← aggiungi qui
+export type MuseumProvider = 'chicago' | 'rijksmuseum' | 'wellcome' | 'ycba' | 'nome_nuovo_museo'; // ← aggiungi qui
 ```
 
 ### Passo 3 — Crea il file adapter
@@ -244,7 +223,6 @@ import { nomeMuseumAdapter } from '@/lib/museums/nome_museo';
 const ALL_ADAPTERS = [
   chicagoAdapter,
   rijksmuseumAdapter,
-  ngaAdapter,
   wellcomeAdapter,
   ycbaAdapter,
   nomeMuseumAdapter, // ← aggiungi qui

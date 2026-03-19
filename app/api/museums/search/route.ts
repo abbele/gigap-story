@@ -16,22 +16,15 @@ import type { MuseumProvider, MuseumSearchParams } from '@/types/museum';
 import { aggregateSearch } from '@/lib/museums/transformer';
 import { chicagoAdapter } from '@/lib/museums/chicago';
 import { rijksmuseumAdapter } from '@/lib/museums/rijksmuseum';
-import { ngaAdapter } from '@/lib/museums/nga';
 import { wellcomeAdapter } from '@/lib/museums/wellcome';
 import { ycbaAdapter } from '@/lib/museums/ycba';
 
 // PERF: cache di 1h a livello di route segment — si applica a tutte le risposte GET
 export const revalidate = 3600;
 
-const ALL_ADAPTERS = [chicagoAdapter, rijksmuseumAdapter, ngaAdapter, wellcomeAdapter, ycbaAdapter];
+const ALL_ADAPTERS = [chicagoAdapter, rijksmuseumAdapter, wellcomeAdapter, ycbaAdapter];
 
-const VALID_PROVIDERS = new Set<MuseumProvider>([
-  'chicago',
-  'rijksmuseum',
-  'nga',
-  'wellcome',
-  'ycba',
-]);
+const VALID_PROVIDERS = new Set<MuseumProvider>(['chicago', 'rijksmuseum', 'wellcome', 'ycba']);
 
 export async function GET(request: NextRequest) {
   const sp = request.nextUrl.searchParams;

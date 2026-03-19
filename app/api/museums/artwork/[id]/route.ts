@@ -13,7 +13,6 @@ import type { MuseumAdapter } from '@/types/museum';
 import { parseCompositeId } from '@/lib/museums/transformer';
 import { chicagoAdapter } from '@/lib/museums/chicago';
 import { rijksmuseumAdapter } from '@/lib/museums/rijksmuseum';
-import { ngaAdapter } from '@/lib/museums/nga';
 import { wellcomeAdapter } from '@/lib/museums/wellcome';
 import { ycbaAdapter } from '@/lib/museums/ycba';
 
@@ -23,7 +22,6 @@ export const revalidate = 3600;
 const ADAPTERS: Record<string, MuseumAdapter> = {
   chicago: chicagoAdapter,
   rijksmuseum: rijksmuseumAdapter,
-  nga: ngaAdapter,
   wellcome: wellcomeAdapter,
   ycba: ycbaAdapter,
 };

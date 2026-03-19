@@ -1,139 +1,180 @@
-// MUSEUM_API: Rijksmuseum Amsterdam
-// Search:   SPARQL → https://data.rijksmuseum.nl/sparql (pubblica, no key)
-// IIIF:     https://www.rijksmuseum.nl/api/iiif-img/{objectNumber}.jpg/info.json
-// Manifest: https://www.rijksmuseum.nl/api/iiif/{objectNumber}/manifest.json
-// Auth:     nessuna API key — usa l'endpoint SPARQL pubblico del Data Hub
-// Doc:      https://data.rijksmuseum.nl/
+// MUSEUM_API: Rijksmuseum Amsterdam — nuova architettura Data Services 2025
+// Search:   https://data.rijksmuseum.nl/search/collection?type=painting&title=...
+//           Restituisce IDs Linked Data (es. https://id.rijksmuseum.nl/200100988)
+// Metadati: OAI-PMH GetRecord → https://data.rijksmuseum.nl/oai?verb=GetRecord&...
+//           Dublin Core con titolo, artista, data, formato, micrioId (da dc:relation)
+// IIIF:     https://iiif.micr.io/{micrioId}/info.json  (Micrio, compatibile OSD)
+// Auth:     nessuna API key — tutto pubblico
+// Doc:      https://data.rijksmuseum.nl/docs/iiif/image
 //
-// ⚠️  STATO: non operativo — l'endpoint SPARQL restituisce 404/405 nelle prove effettuate.
-//     L'API REST classica (www.rijksmuseum.nl/api/en/collection) è deprecata (410 Gone).
-//     Il codice è implementato correttamente; il problema è infrastrutturale lato Rijksmuseum.
-//     TODO @fase-futura: verificare nuovo endpoint SPARQL o migrare ad approccio manifest IIIF
-//     con lista curata di object number (simile all'adapter YCBA).
+// Flusso:
+//   1. Search API → lista di IDs Linked Data
+//   2. OAI-PMH GetRecord (parallelo) → metadati Dublin Core per ogni ID
+//   3. Estrai micrioId da dc:relation → costruisci IIIF info.json
 
 import type { MuseumAdapter, MuseumSearchParams, UnifiedArtwork } from '@/types/museum';
-import { calcAspectRatio, cleanText } from './transformer';
+import { cleanText, calcAspectRatio } from './transformer';
 
-const SPARQL_ENDPOINT = 'https://data.rijksmuseum.nl/sparql';
-const IIIF_MANIFEST_BASE = 'https://www.rijksmuseum.nl/api/iiif';
-// IIIF: pattern immagine Rijksmuseum — image server nativo con supporto Deep Zoom
-const IIIF_IMG_BASE = 'https://www.rijksmuseum.nl/api/iiif-img';
+const SEARCH_BASE = 'https://data.rijksmuseum.nl/search/collection';
+const OAI_BASE = 'https://data.rijksmuseum.nl/oai';
+const MICRIO_BASE = 'https://iiif.micr.io';
 
-interface RijksResult {
+interface RMASearchResponse {
+  orderedItems: { id: string }[];
+  next?: string;
+}
+
+interface OaiRecord {
+  numericId: string;
   objectNumber: string;
   title: string;
   creator: string;
   date: string;
-  imageWidth?: string;
-  imageHeight?: string;
+  micrioId: string;
+  medium: string;
+}
+
+// --- XML parsing ---
+
+/** Estrae il primo valore di un tag Dublin Core dall'XML OAI-PMH. */
+function extractFirst(xml: string, tag: string): string {
+  const match = xml.match(new RegExp(`<dc:${tag}[^>]*>([^<]*)<\\/dc:${tag}>`, 'i'));
+  return match ? decodeXmlEntities(match[1].trim()) : '';
+}
+
+/** Estrae tutti i valori di un tag Dublin Core (es. dc:format può essere multiplo). */
+function extractAll(xml: string, tag: string): string[] {
+  const regex = new RegExp(`<dc:${tag}[^>]*>([^<]*)<\\/dc:${tag}>`, 'gi');
+  const results: string[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = regex.exec(xml)) !== null) {
+    const val = decodeXmlEntities(m[1].trim());
+    if (val) results.push(val);
+  }
+  return results;
+}
+
+/** Decodifica le entità XML più comuni. */
+function decodeXmlEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
 }
 
 /**
- * Costruisce la SPARQL query per cercare dipinti nel catalogo Rijksmuseum.
- * MUSEUM_API: usa il vocabolario EDM (Europeana Data Model) esposto dal Data Hub.
+ * Parsa un record OAI-PMH oai_dc.
+ * Restituisce null se mancano titolo o micrioId (necessario per il IIIF viewer).
+ *
+ * MUSEUM_API: dc:relation contiene l'URL immagine Micrio con il format:
+ * "https://iiif.micr.io/{micrioId}/full/max/0/default.jpg"
+ * Da cui estraiamo il micrioId per costruire info.json.
  */
-function buildSparqlQuery(query: string | undefined, limit: number, offset: number): string {
-  // MUSEUM_API: filtro tipo opera — cerca solo dipinti nel Data Hub
-  const textFilter = query
-    ? `FILTER(CONTAINS(LCASE(str(?title)), LCASE(${JSON.stringify(query)})))`
-    : '';
+function parseOaiDcXml(xml: string, numericId: string): OaiRecord | null {
+  const title = extractFirst(xml, 'title');
+  if (!title) return null;
 
-  return `
-PREFIX dc: <http://purl.org/dc/elements/1.1/>
-PREFIX edm: <http://www.europeana.eu/schemas/edm/>
-PREFIX ore: <http://www.openarchives.org/ore/terms/>
-PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+  // IIIF: micrioId estratto dall'URL immagine in dc:relation
+  const relation = extractFirst(xml, 'relation');
+  const micrioMatch = relation.match(/iiif\.micr\.io\/([^/]+)/);
+  if (!micrioMatch) return null;
 
-SELECT DISTINCT ?objectNumber ?title ?creator ?date ?imageWidth ?imageHeight
-WHERE {
-  ?cho dc:identifier ?objectNumber ;
-       dc:title ?title ;
-       dc:type ?typeLabel .
-  OPTIONAL { ?cho dc:creator ?creator . }
-  OPTIONAL { ?cho dc:date ?date . }
-  OPTIONAL { ?cho <http://www.w3.org/2003/12/exif/ns#width> ?imageWidth . }
-  OPTIONAL { ?cho <http://www.w3.org/2003/12/exif/ns#height> ?imageHeight . }
-  # MUSEUM_API: filtra solo dipinti (schilderij in olandese)
-  FILTER(CONTAINS(LCASE(str(?typeLabel)), "schilderij") || CONTAINS(LCASE(str(?typeLabel)), "painting"))
-  ${textFilter}
+  const formats = extractAll(xml, 'format');
+
+  return {
+    numericId,
+    objectNumber: extractFirst(xml, 'identifier'),
+    title,
+    creator: extractFirst(xml, 'creator'),
+    date: extractFirst(xml, 'date'),
+    micrioId: micrioMatch[1],
+    // TRANSFORMER: dc:format può essere multiplo (es. "doek", "olieverf") → join
+    medium: formats.join(', '),
+  };
 }
-LIMIT ${limit}
-OFFSET ${offset}
-`.trim();
+
+/**
+ * Fetch OAI-PMH GetRecord per un singolo ID Linked Data numerico.
+ * Restituisce null in caso di errore o dati mancanti.
+ */
+async function fetchOaiRecord(numericId: string): Promise<OaiRecord | null> {
+  try {
+    const identifier = `https://id.rijksmuseum.nl/${numericId}`;
+    const url = `${OAI_BASE}?verb=GetRecord&metadataPrefix=oai_dc&identifier=${encodeURIComponent(identifier)}`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const xml = await res.text();
+    return parseOaiDcXml(xml, numericId);
+  } catch {
+    return null;
+  }
+}
+
+/** Estrae il numeric ID dall'URL Linked Data del Rijksmuseum. */
+function extractNumericId(linkedDataId: string): string | null {
+  return linkedDataId.split('/').pop() ?? null;
 }
 
 export const rijksmuseumAdapter: MuseumAdapter = {
   provider: 'rijksmuseum',
 
   async search(params: MuseumSearchParams) {
-    const offset = (params.page - 1) * params.limit;
-    const sparql = buildSparqlQuery(params.query, params.limit, offset);
+    // MUSEUM_API: Step 1 — ottieni lista IDs dalla Search API
+    const searchUrl = new URL(SEARCH_BASE);
+    searchUrl.searchParams.set('type', 'painting');
+    if (params.query) searchUrl.searchParams.set('title', params.query);
 
-    const res = await fetch(SPARQL_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Accept: 'application/sparql-results+json',
-      },
-      body: `query=${encodeURIComponent(sparql)}`,
-    });
+    // PERF: la Search API restituisce 100 items per pagina senza offset;
+    // per la paginazione usiamo `next` ma per semplicità usiamo solo la prima pagina
+    const res = await fetch(searchUrl.toString());
+    if (!res.ok) throw new Error(`Rijksmuseum Search API ${res.status}: ${res.statusText}`);
 
-    if (!res.ok) throw new Error(`Rijksmuseum SPARQL ${res.status}: ${res.statusText}`);
+    const json: RMASearchResponse = await res.json();
 
-    const json = await res.json();
-    const bindings: Record<string, { value: string }>[] = json.results?.bindings ?? [];
+    // Prendiamo più IDs del necessario per compensare quelli senza immagine
+    const ids = json.orderedItems
+      .slice(0, Math.min(params.limit * 3, json.orderedItems.length))
+      .map((item) => extractNumericId(item.id))
+      .filter((id): id is string => !!id);
 
-    // TRANSFORMER: mappa i binding SPARQL in oggetti intermedi tipizzati
-    const items: RijksResult[] = bindings
-      .filter((b) => b.objectNumber?.value)
-      .map((b) => ({
-        objectNumber: b.objectNumber.value,
-        title: b.title?.value ?? '',
-        creator: b.creator?.value ?? '',
-        date: b.date?.value ?? '',
-        imageWidth: b.imageWidth?.value,
-        imageHeight: b.imageHeight?.value,
-      }));
+    if (ids.length === 0) return { items: [], total: 0 };
 
-    return { items, total: items.length };
+    // MUSEUM_API: Step 2 — fetch OAI-PMH in parallelo per ogni ID
+    const records = await Promise.all(ids.map(fetchOaiRecord));
+
+    // TRANSFORMER: scarta i record null (senza immagine o dati incompleti)
+    const items = records.filter((r): r is OaiRecord => r !== null).slice(0, params.limit);
+
+    return { items, total: json.orderedItems.length };
   },
 
   async getArtwork(id: string) {
-    // MUSEUM_API: per il dettaglio fetchamo il manifest IIIF che contiene i metadati completi
-    const manifestUrl = `${IIIF_MANIFEST_BASE}/${id}/manifest.json`;
-    const res = await fetch(manifestUrl);
-    if (!res.ok) throw new Error(`Rijksmuseum manifest ${res.status}`);
-    const manifest = await res.json();
-
-    // TRANSFORMER: estrai i dati base dal manifest IIIF Presentation API 2.x
-    return {
-      objectNumber: id,
-      title: manifest.label ?? '',
-      creator: manifest.metadata?.find((m: { label: string }) => m.label === 'Artist')?.value ?? '',
-      date: manifest.metadata?.find((m: { label: string }) => m.label === 'Dating')?.value ?? '',
-    } as RijksResult;
+    const record = await fetchOaiRecord(id);
+    if (!record) throw new Error(`Rijksmuseum: opera ${id} non trovata`);
+    return record;
   },
 
   transformToUnified(raw: unknown): UnifiedArtwork {
-    const r = raw as RijksResult;
+    const r = raw as OaiRecord;
+    if (!r.micrioId) throw new Error(`Rijksmuseum ${r.numericId}: micrioId mancante`);
 
-    if (!r.objectNumber) throw new Error('Rijksmuseum: objectNumber mancante');
-
-    // IIIF: costruiamo il URL dell'image server nativo Rijksmuseum
-    // Pattern: https://www.rijksmuseum.nl/api/iiif-img/{objectNumber}.jpg/info.json
-    const imgBase = `${IIIF_IMG_BASE}/${r.objectNumber}.jpg`;
+    // IIIF: Micrio è un server IIIF Image API standard, compatibile con OpenSeadragon
+    const iiifBase = `${MICRIO_BASE}/${r.micrioId}`;
 
     return {
-      id: `rijksmuseum_${r.objectNumber}`,
+      id: `rijksmuseum_${r.numericId}`,
       provider: 'rijksmuseum',
       title: cleanText(r.title) || 'Senza titolo',
       artist: cleanText(r.creator) || 'Anonimo',
       date: cleanText(r.date) || '',
-      medium: '',
-      imageUrl: `${imgBase}/full/400,/0/default.jpg`,
-      imageUrlLarge: `${imgBase}/full/843,/0/default.jpg`,
-      iiifInfoUrl: `${imgBase}/info.json`,
-      iiifManifestUrl: `${IIIF_MANIFEST_BASE}/${r.objectNumber}/manifest.json`,
+      medium: cleanText(r.medium) || '',
+      imageUrl: `${iiifBase}/full/400,/0/default.jpg`,
+      imageUrlLarge: `${iiifBase}/full/843,/0/default.jpg`,
+      iiifInfoUrl: `${iiifBase}/info.json`,
+      iiifManifestUrl: `https://www.rijksmuseum.nl/api/iiif/${r.objectNumber}/manifest.json`,
       sourceUrl: `https://www.rijksmuseum.nl/en/collection/${r.objectNumber}`,
       museum: {
         name: 'Rijksmuseum',
@@ -142,10 +183,7 @@ export const rijksmuseumAdapter: MuseumAdapter = {
         country: 'Netherlands',
       },
       classification: 'Painting',
-      aspectRatio: calcAspectRatio(
-        r.imageWidth ? parseInt(r.imageWidth) : null,
-        r.imageHeight ? parseInt(r.imageHeight) : null,
-      ),
+      aspectRatio: calcAspectRatio(null, null),
     };
   },
 };

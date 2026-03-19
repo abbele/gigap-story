@@ -116,7 +116,6 @@
   │   │   ├── transformer.ts
   │   │   ├── chicago.ts
   │   │   ├── rijksmuseum.ts
-  │   │   ├── nga.ts
   │   │   ├── wellcome.ts
   │   │   └── ycba.ts
   │   ├── supabase/
@@ -139,7 +138,7 @@
   ```typescript
   // === src/types/museum.ts ===
 
-  type MuseumProvider = 'chicago' | 'rijksmuseum' | 'nga' | 'wellcome' | 'ycba';
+  type MuseumProvider = 'chicago' | 'rijksmuseum' | 'wellcome' | 'ycba';
 
   interface UnifiedArtwork {
     id: string; // Provider-prefixed: "chicago_12345"
@@ -265,7 +264,7 @@
 
 ## Fase 1 — Museum API Aggregator e Transformer (Settimane 1-2)
 
-- [x] Implementare i 5 adapter museali in `lib/museums/`:
+- [x] Implementare i 4 adapter museali in `lib/museums/`:
 
   **Chicago** (`chicago.ts`):
   - Search: `https://api.artic.edu/api/v1/artworks/search`
@@ -275,20 +274,11 @@
   - Filtro solo dipinti: `query.term.classification_title: "Painting"` + `query.term.is_public_domain: true`
   - Doc: https://api.artic.edu/docs/
 
-  **Rijksmuseum** (`rijksmuseum.ts`):
-  - Search: Linked Art Search API — `https://data.rijksmuseum.nl/search` (no key)
-  - IIIF Image: `https://lh3.googleusercontent.com/...` o endpoint nativo
-  - IIIF Manifest: `https://www.rijksmuseum.nl/api/iiif/{objectnumber}/manifest.json`
-  - IIIF Discovery: `https://data.rijksmuseum.nl/api/iiif/changeDiscovery` per harvest bulk
-  - Filtro tipo: `type=painting` nelle query Linked Art
-  - Doc: https://data.rijksmuseum.nl/
-
-  **National Gallery of Art** (`nga.ts`):
-  - Search: `https://api.nga.gov/art/tms/objects` (pubblica, no key)
-  - IIIF: `https://api.nga.gov/iiif/{uuid}/info.json`
-  - Filtro: `classification=Painting` + `hasImage=true`
-  - Open data su GitHub: https://github.com/NationalGalleryOfArt/opendata
-  - Doc: https://api.nga.gov/
+  **Rijksmuseum** (`rijksmuseum.ts`) — architettura Data Services 2025:
+  - Search: `https://data.rijksmuseum.nl/search/collection?type=painting&title={query}`
+  - Metadati: OAI-PMH GetRecord → `https://data.rijksmuseum.nl/oai?verb=GetRecord&metadataPrefix=oai_dc&identifier=...`
+  - IIIF: Micrio — `https://iiif.micr.io/{micrioId}/info.json`
+  - Doc: https://data.rijksmuseum.nl/docs/iiif/image
 
   **Wellcome Collection** (`wellcome.ts`):
   - Search: `https://api.wellcomecollection.org/catalogue/v2/works`
@@ -299,10 +289,9 @@
   - Nota: il catalogo include anche materiale non-pittorico — filtra per `workType=k` e verifica presenza `thumbnail`
 
   **Yale Center for British Art** (`ycba.ts`):
-  - Accesso: OAI-PMH + IIIF manifests (nessuna REST search in tempo reale)
-  - OAI-PMH endpoint: `https://collections.britishart.yale.edu/oai?verb=ListRecords&metadataPrefix=oai_dc&set=Paintings`
+  - Accesso: IIIF Presentation API 3 (OAI-PMH dismesso nel 2023)
   - IIIF Manifest: `https://manifests.collections.yale.edu/ycba/obj/{id}`
-  - Strategia: **harvest una tantum** via OAI-PMH → salva lista opere in cache (`unstable_cache` o file statico), poi filtra in-memory. Non è real-time ma è sufficiente per il progetto.
+  - Strategia: fetch parallelo di ~40 manifest da ID noti → cache 24h (`unstable_cache`), filtro in-memory
   - Doc: https://britishart.yale.edu/collections-data-sharing
 
 - [x] Implementare il **transformer** (`lib/museums/transformer.ts`):
@@ -319,9 +308,7 @@
   - `revalidate = 3600` a livello di route segment per search e artwork
   - Per YCBA: `unstable_cache` con TTL 24h per l'harvest OAI-PMH
 
-- **Criterio completamento**: ✅ `GET /api/museums/search?q=portrait&limit=20` restituisce risultati da **3 musei** (Chicago, Wellcome, YCBA) in formato `UnifiedArtwork` unificato
-  - Rijksmuseum: API REST deprecata (410), SPARQL endpoint non raggiungibile — TODO @fase-futura
-  - NGA: endpoint `api.nga.gov/art/tms/objects` inesistente — TODO @fase-futura (CSV open data)
+- **Criterio completamento**: ✅ `GET /api/museums/search?q=portrait&limit=20` restituisce risultati da **4 musei** (Chicago, Rijksmuseum, Wellcome, YCBA) in formato `UnifiedArtwork` unificato
 
 ---
 

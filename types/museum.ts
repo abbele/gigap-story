@@ -1,6 +1,6 @@
 // Tipi unificati per le opere e i musei aggregati
 
-export type MuseumProvider = 'chicago' | 'rijksmuseum' | 'nga' | 'wellcome' | 'ycba';
+export type MuseumProvider = 'chicago' | 'rijksmuseum' | 'wellcome' | 'ycba';
 
 export interface UnifiedArtwork {
   /** ID prefissato dal provider: es. "chicago_12345" */
