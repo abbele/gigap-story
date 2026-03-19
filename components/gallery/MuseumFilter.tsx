@@ -47,8 +47,10 @@ export default function MuseumFilter({ selected, onChange, total }: MuseumFilter
             type="button"
             onClick={() => toggle(provider)}
             title={MUSEUM_LABELS[provider].full}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-              isSelected ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+            className={`px-3 py-1.5 text-[10px] font-mono font-bold tracking-[0.2em] uppercase transition-colors border-2 ${
+              isSelected
+                ? 'bg-[#e8c832] text-black border-[#e8c832]'
+                : 'bg-transparent text-zinc-500 border-[#2a2a2a] hover:border-zinc-500 hover:text-zinc-300'
             }`}
           >
             {MUSEUM_LABELS[provider].short}
@@ -58,7 +60,9 @@ export default function MuseumFilter({ selected, onChange, total }: MuseumFilter
 
       {/* UX: contatore totale risultati — aiuta l'utente a capire l'impatto dei filtri */}
       {total !== undefined && (
-        <span className="ml-auto text-xs text-zinc-400">{total.toLocaleString('it-IT')} opere</span>
+        <span className="ml-auto text-[10px] font-mono text-zinc-600 tracking-widest uppercase">
+          {total.toLocaleString('it-IT')} opere
+        </span>
       )}
     </div>
   );

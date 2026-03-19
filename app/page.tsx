@@ -2,19 +2,43 @@ import GalleryShell from '@/components/gallery/GalleryShell';
 
 /**
  * @description Homepage — gallery di opere aggregate dai 4 musei integrati.
- * Server Component: il contenuto statico (header) è renderizzato lato server,
+ * Server Component: l'header è renderizzato lato server,
  * la gallery interattiva è un Client Component annidato.
  */
 export default function Home() {
   return (
     <div className="flex flex-col min-h-full">
-      {/* Header statico */}
-      <header className="bg-zinc-950 text-white px-4 py-8 md:px-6 lg:px-8">
+      {/* Header Bauhaus — tipografia brutale, composizione geometrica */}
+      <header className="border-b-2 border-[#2a2a2a] px-4 pt-10 pb-0 md:px-8 bg-[#080808]">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-2xl font-semibold tracking-tight">Gigapixel Storyteller</h1>
-          <p className="mt-1 text-sm text-zinc-400 max-w-xl">
-            Esplora dipinti ad altissima risoluzione da 4 musei internazionali e crea narrazioni
-            visive guidate.
+          {/* Etichetta categoria — grid Bauhaus */}
+          <div className="flex items-center gap-3 mb-5">
+            <span className="w-3 h-3 bg-[#e8c832] block shrink-0" />
+            <span className="text-[10px] tracking-[0.35em] uppercase font-mono text-zinc-500">
+              Archivio Visivo — 4 Musei Internazionali
+            </span>
+          </div>
+
+          {/* Titolo — dimensione espressiva, proporzionato alla viewport */}
+          <h1
+            className="font-mono font-bold uppercase leading-none text-[#f0ede8]"
+            style={{ fontSize: 'clamp(2.8rem, 9vw, 7.5rem)', letterSpacing: '-0.03em' }}
+          >
+            Gigapixel
+            <br />
+            <span className="text-[#e8c832]">Storyteller</span>
+          </h1>
+
+          {/* Separatore geometrico orizzontale */}
+          <div className="mt-7 flex items-center">
+            <div className="h-0.5 w-full bg-[#2a2a2a]" />
+            <div className="w-4 h-4 bg-[#e8c832] shrink-0 mx-4" />
+            <div className="h-0.5 w-12 bg-[#2a2a2a] shrink-0" />
+          </div>
+
+          {/* Sottotitolo — mono, piccolo, in basso nell'header */}
+          <p className="mt-4 mb-6 text-xs text-zinc-500 font-mono tracking-wide max-w-lg">
+            Esplora dipinti ad altissima risoluzione e crea narrazioni visive guidate.
           </p>
         </div>
       </header>

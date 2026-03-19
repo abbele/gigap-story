@@ -106,7 +106,7 @@ export async function aggregateSearch(
     artworks: shuffled,
     total,
     page: params.page,
-    hasMore: shuffled.length >= params.limit,
+    hasMore: total >= params.limit,
     providers,
   };
 }

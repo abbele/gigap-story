@@ -20,15 +20,17 @@ export default function GalleryShell() {
   const [providers, setProviders] = useState<MuseumProvider[]>([]);
 
   return (
-    <section className="px-4 py-6 md:px-6 lg:px-8">
-      {/* Barra di ricerca e filtri museo */}
-      <div className="mb-5 flex flex-col gap-3">
+    <section className="px-4 md:px-8">
+      {/* Barra controlli — bordo inferiore separa da gallery */}
+      <div className="py-4 mb-1 flex flex-col gap-3 border-b-2 border-[#2a2a2a]">
         <SearchBar onSearch={setQuery} />
         <MuseumFilter selected={providers} onChange={setProviders} />
       </div>
 
       {/* Gallery masonry con infinite scroll */}
-      <ArtworkGallery query={query} providers={providers} />
+      <div className="pt-4">
+        <ArtworkGallery query={query} providers={providers} />
+      </div>
     </section>
   );
 }

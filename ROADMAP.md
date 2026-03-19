@@ -334,6 +334,7 @@
   - IntersectionObserver su sentinel sempre nel DOM (non dentro early return)
   - Reset automatico al cambio query/filtri grazie alla queryKey di TanStack Query
   - `fetchNextPage()` è no-op se `hasNextPage=false` — nessuna guardia esplicita necessaria
+  - **⚠️ TODO: rivedere** — comportamento del sentinel, gestione errori durante i batch successivi, UX edge case da verificare
 
 - [x] **Providers** (`app/providers.tsx`): QueryClientProvider con `staleTime: 60s`
 
