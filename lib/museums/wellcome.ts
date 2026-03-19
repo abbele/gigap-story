@@ -18,7 +18,8 @@ interface WellcomeWork {
   id: string;
   title: string;
   contributors?: { agent: { label: string } }[];
-  productionDates?: { label: string }[];
+  // MUSEUM_API: campo 'production' restituito dal param include=production (v2)
+  production?: { label: string }[];
   description?: string;
   thumbnail?: {
     url: string;
@@ -69,7 +70,8 @@ export const wellcomeAdapter: MuseumAdapter = {
   },
 
   async getArtwork(id: string) {
-    const url = `${BASE_URL}/works/${id}?include=contributors,productionDates,subjects,thumbnail`;
+    // MUSEUM_API: 'production' è il param valido in v2 — 'productionDates' e 'thumbnail' non esistono
+    const url = `${BASE_URL}/works/${id}?include=contributors,production,subjects`;
     const res = await fetch(url, { headers: { Accept: 'application/json' } });
     if (!res.ok) throw new Error(`Wellcome API ${res.status}`);
     return res.json();
@@ -84,7 +86,7 @@ export const wellcomeAdapter: MuseumAdapter = {
 
     const iiifBase = `${IIIF_IMG_BASE}/${imageId}`;
     const artist = w.contributors?.[0]?.agent?.label ?? 'Anonimo';
-    const date = w.productionDates?.[0]?.label ?? '';
+    const date = w.production?.[0]?.label ?? '';
     const tags = w.subjects?.map((s) => s.label).filter(Boolean);
 
     return {
