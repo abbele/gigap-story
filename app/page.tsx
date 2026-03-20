@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import GalleryShell from '@/components/gallery/GalleryShell';
 
 /**
@@ -37,9 +38,17 @@ export default function Home() {
           </div>
 
           {/* Sottotitolo — mono, piccolo, in basso nell'header */}
-          <p className="mt-4 mb-6 text-xs text-zinc-500 font-mono tracking-wide max-w-lg">
-            Esplora dipinti ad altissima risoluzione e crea narrazioni visive guidate.
-          </p>
+          <div className="mt-4 mb-6 flex items-center gap-6">
+            <p className="text-xs text-zinc-500 font-mono tracking-wide max-w-lg">
+              Esplora dipinti ad altissima risoluzione e crea narrazioni visive guidate.
+            </p>
+            <Link
+              href="/stories"
+              className="shrink-0 text-[10px] font-mono tracking-[0.25em] uppercase text-[#e8c832] border border-[#e8c832]/40 px-3 py-1.5 hover:bg-[#e8c832] hover:text-[#080808] transition-colors"
+            >
+              Storie →
+            </Link>
+          </div>
         </div>
       </header>
 
