@@ -1,10 +1,12 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  // Turbopack (default Next.js 16): rispetta il campo "browser" di @xenova/transformers
+  // nativamente, quindi sharp e onnxruntime-node sono già esclusi dal bundle browser.
+  turbopack: {},
+  // Webpack (flag --webpack): alias espliciti come fallback per versioni webpack
+  // che non processano correttamente il campo "browser" del package.
   webpack: (config) => {
-    // AI: @xenova/transformers usa onnxruntime-web nel browser e onnxruntime-node in Node.
-    // Webpack deve ignorare i binding nativi Node.js — il campo "browser" in package.json
-    // di @xenova/transformers non è sufficiente con alcune versioni di webpack.
     config.resolve.alias = {
       ...config.resolve.alias,
       sharp$: false,
