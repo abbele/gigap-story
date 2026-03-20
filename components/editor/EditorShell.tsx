@@ -20,9 +20,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import type { UnifiedArtwork } from '@/types/museum';
 import type { Story, Waypoint } from '@/types/story';
+import type { SimilarityResult } from '@/lib/ai/similarity';
 import { useViewer } from '@/hooks/useViewer';
 import { useAnonymousAuthor } from '@/hooks/useAnonymousAuthor';
 import { useEditorAutosave } from '@/hooks/useEditorAutosave';
+import { useSimilarity } from '@/hooks/useSimilarity';
 import GigapixelViewer from '@/components/viewer/GigapixelViewer';
 import WaypointList from './WaypointList';
 import WaypointEditor from './WaypointEditor';
@@ -86,6 +88,9 @@ export default function EditorShell({ artwork, initialStory }: EditorShellProps)
   // ── UI state ─────────────────────────────────────────────────────
   const [isPublishOpen, setPublishOpen] = useState(false);
   const [isDraftsOpen, setDraftsOpen] = useState(false);
+
+  // AI (fase 9): hook similarità visiva — carica modello CLIP + indice embedding on-demand
+  const { findSimilar } = useSimilarity();
 
   // AI: stato pannello auto-story
   const [autoStorySuggestions, setAutoStorySuggestions] = useState<
@@ -240,6 +245,36 @@ export default function EditorShell({ artwork, initialStory }: EditorShellProps)
 
   const activeWaypoint = waypoints.find((w) => w.id === activeWaypointId) ?? null;
   const activeWaypointIndex = waypoints.findIndex((w) => w.id === activeWaypointId);
+
+  // AI (fase 9): genera la spiegazione testuale di una connessione visiva tra l'opera corrente e un risultato CLIP
+  const handleExplainConnection = useCallback(
+    async (result: SimilarityResult): Promise<string> => {
+      const res = await fetch('/api/ai/explain-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceTitle: artwork.title,
+          sourceArtist: artwork.artist,
+          connectedTitle: result.title,
+          connectedArtist: result.artist,
+          connectedProvider: result.provider,
+          similarity: result.similarity,
+        }),
+      });
+      const data = (await res.json()) as { explanation?: string; error?: string };
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      return data.explanation ?? '';
+    },
+    [artwork],
+  );
+
+  // AI (fase 9): cerca opere visivamente simili al crop del waypoint
+  const handleFindSimilar = useCallback(
+    (imageBase64: string): Promise<SimilarityResult[]> => {
+      return findSimilar(imageBase64, 8, activeWaypoint?.id);
+    },
+    [findSimilar, activeWaypoint?.id],
+  );
 
   // AI: suggerisci testo per il waypoint attivo — passato a WaypointEditor come callback
   const handleSuggestText = useCallback(async (): Promise<string> => {
@@ -453,6 +488,8 @@ export default function EditorShell({ artwork, initialStory }: EditorShellProps)
                   onCaptureViewport={handleCaptureViewportForActive}
                   onClose={() => setActiveWaypointId(null)}
                   onSuggestText={handleSuggestText}
+                  onFindSimilar={handleFindSimilar}
+                  onExplainConnection={handleExplainConnection}
                 />
               ) : (
                 <WaypointList

@@ -3,11 +3,13 @@
 // UX: Editor del singolo waypoint.
 // Mostra il TiptapEditor per il testo, lo slider durata (1-15s),
 // il select transizione e il pulsante "Aggiorna viewport".
-// AI: pulsante opzionale "Suggerisci testo" — usa onSuggestText se fornito.
+// AI (fase 7): pulsante opzionale "Suggerisci testo" — usa onSuggestText se fornito.
+// AI (fase 9): pulsante "Connessioni" — trova opere visivamente simili al crop del waypoint.
 
 import { useState } from 'react';
 import TiptapEditor from './TiptapEditor';
 import type { Waypoint } from '@/types/story';
+import type { SimilarityResult } from '@/lib/ai/similarity';
 
 interface WaypointEditorProps {
   waypoint: Waypoint;
@@ -20,6 +22,10 @@ interface WaypointEditorProps {
   onClose: () => void;
   /** AI: callback che chiama /api/ai/suggest — undefined se AI non configurata */
   onSuggestText?: () => Promise<string>;
+  /** AI (fase 9): callback che cerca opere visivamente simili — undefined se indice non generato */
+  onFindSimilar?: (imageBase64: string) => Promise<SimilarityResult[]>;
+  /** AI (fase 9): callback che genera la spiegazione testuale di una connessione visiva */
+  onExplainConnection?: (result: SimilarityResult) => Promise<string>;
 }
 
 /**
@@ -46,10 +52,18 @@ export default function WaypointEditor({
   onCaptureViewport,
   onClose,
   onSuggestText,
+  onFindSimilar,
+  onExplainConnection,
 }: WaypointEditorProps) {
-  // AI: stato locale per loading/errore del suggerimento testo
+  // AI (fase 7): stato locale per loading/errore del suggerimento testo
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [suggestError, setSuggestError] = useState<string | null>(null);
+
+  // AI (fase 9): stato locale per la ricerca di similarità visiva
+  const [isFindingSimilar, setIsFindingSimilar] = useState(false);
+  const [similarResults, setSimilarResults] = useState<SimilarityResult[] | null>(null);
+  const [similarError, setSimilarError] = useState<string | null>(null);
+  const [showConnections, setShowConnections] = useState(false);
 
   const handleSuggest = async () => {
     if (!onSuggestText) return;
@@ -62,6 +76,43 @@ export default function WaypointEditor({
       setSuggestError('Errore generazione testo');
     } finally {
       setIsSuggesting(false);
+    }
+  };
+
+  // AI (fase 9): mappa artworkId → spiegazione generata e stato di loading per card
+  const [explanations, setExplanations] = useState<Record<string, string>>({});
+  const [loadingExplanations, setLoadingExplanations] = useState<Record<string, boolean>>({});
+
+  // AI (fase 9): genera la spiegazione testuale della connessione visiva per una singola card
+  const handleExplain = async (result: SimilarityResult) => {
+    if (!onExplainConnection) return;
+    setLoadingExplanations((prev) => ({ ...prev, [result.artworkId]: true }));
+    try {
+      const explanation = await onExplainConnection(result);
+      setExplanations((prev) => ({ ...prev, [result.artworkId]: explanation }));
+    } catch {
+      setExplanations((prev) => ({
+        ...prev,
+        [result.artworkId]: 'Errore generazione spiegazione',
+      }));
+    } finally {
+      setLoadingExplanations((prev) => ({ ...prev, [result.artworkId]: false }));
+    }
+  };
+
+  // AI (fase 9): cerca opere simili al crop del waypoint
+  const handleFindConnections = async () => {
+    if (!onFindSimilar || !waypoint.thumbnailDataUrl) return;
+    setIsFindingSimilar(true);
+    setSimilarError(null);
+    setShowConnections(true);
+    try {
+      const results = await onFindSimilar(waypoint.thumbnailDataUrl);
+      setSimilarResults(results);
+    } catch (err) {
+      setSimilarError(err instanceof Error ? err.message : 'Errore ricerca similarità');
+    } finally {
+      setIsFindingSimilar(false);
     }
   };
 
@@ -167,6 +218,98 @@ export default function WaypointEditor({
       >
         ⊡ Aggiorna viewport dalla vista corrente
       </button>
+
+      {/* AI (fase 9): pannello connessioni visive — visibile solo se il waypoint ha un thumbnail */}
+      {onFindSimilar && waypoint.thumbnailDataUrl && (
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={showConnections ? () => setShowConnections(false) : handleFindConnections}
+            disabled={isFindingSimilar}
+            className="w-full py-2 border-2 border-[#2a2a2a] text-zinc-500 hover:border-zinc-500 hover:text-zinc-300 font-mono text-[10px] tracking-[0.25em] uppercase disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            {isFindingSimilar
+              ? '… cercando'
+              : showConnections
+                ? '✕ Nascondi connessioni'
+                : '⬡ Connessioni visive'}
+          </button>
+
+          {similarError && (
+            <p className="text-[9px] font-mono text-red-500 text-center">{similarError}</p>
+          )}
+
+          {showConnections && similarResults && similarResults.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <span className="text-[9px] font-mono tracking-[0.3em] uppercase text-zinc-600">
+                {similarResults.length} opere simili
+              </span>
+              {/* PERF: griglia 2 colonne — thumbnail 80×60 + metadati */}
+              <div className="flex flex-col gap-2">
+                {similarResults.map((r) => (
+                  <div
+                    key={r.artworkId}
+                    className="border border-[#2a2a2a] p-1.5 flex flex-col gap-1"
+                  >
+                    <div className="flex gap-2">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={r.thumbnailUrl}
+                        alt={r.title}
+                        width={56}
+                        height={42}
+                        className="w-14 h-11 object-cover bg-[#1a1a1a] shrink-0"
+                        loading="lazy"
+                      />
+                      <div className="flex flex-col gap-0.5 min-w-0">
+                        <p className="text-[8px] font-mono text-zinc-400 leading-snug line-clamp-2">
+                          {r.title}
+                        </p>
+                        <p className="text-[8px] font-mono text-zinc-600 truncate">{r.artist}</p>
+                        <div className="flex items-center justify-between mt-auto">
+                          <span className="text-[7px] font-mono text-zinc-700 uppercase tracking-widest">
+                            {r.provider}
+                          </span>
+                          <span className="text-[8px] font-mono text-[#e8c832]">
+                            {Math.round(r.similarity * 100)}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    {/* AI (fase 9): spiegazione testuale della connessione visiva */}
+                    {onExplainConnection &&
+                      (explanations[r.artworkId] ? (
+                        <p className="text-[8px] font-mono text-zinc-500 leading-relaxed border-t border-[#2a2a2a] pt-1 mt-0.5">
+                          {explanations[r.artworkId]}
+                        </p>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleExplain(r)}
+                          disabled={loadingExplanations[r.artworkId]}
+                          className="text-[7px] font-mono tracking-widest uppercase text-zinc-700 hover:text-[#e8c832] disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-left"
+                        >
+                          {loadingExplanations[r.artworkId]
+                            ? '… generando'
+                            : '✦ Spiega connessione'}
+                        </button>
+                      ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {showConnections &&
+            similarResults &&
+            similarResults.length === 0 &&
+            !isFindingSimilar && (
+              <p className="text-[9px] font-mono text-zinc-700 text-center">
+                Nessuna connessione trovata
+              </p>
+            )}
+        </div>
+      )}
     </div>
   );
 }

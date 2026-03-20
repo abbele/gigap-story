@@ -174,6 +174,50 @@ AI_MODEL=llama-3.1-8b-instant                # default Groq; cambia per altri pr
 
 > Vedi [AI.md](AI.md) per la lista completa dei provider supportati e il dettaglio del flusso.
 
+### Connessioni visive — generare l'indice di embedding (Fase 9, opzionale)
+
+Il pannello "Connessioni visive" nell'editor cerca opere simili al dettaglio catturato in ogni waypoint. Usa CLIP (`Xenova/clip-vit-base-patch32`) sia offline (script di indicizzazione) che nel browser — nessuna API key necessaria, tutto locale.
+
+**Passo 1: genera l'indice**
+
+```bash
+pnpm generate:embeddings
+```
+
+Lo script:
+
+1. Scarica il modello CLIP (~170MB, solo la prima volta, in cache a `~/.cache/huggingface`)
+2. Recupera le opere dalla gallery (Chicago, Wellcome, YCBA: 250 a museo; Rijksmuseum: tutte, ~1000-3000)
+3. Per ogni opera: scarica il thumbnail, genera un embedding CLIP da 512 dimensioni
+4. Scrive il risultato in `public/data/embeddings.json`
+
+Opzioni disponibili:
+
+```bash
+pnpm generate:embeddings --per-museum=500      # 500 opere per Chicago/Wellcome/YCBA
+pnpm generate:embeddings --output=public/data/embeddings-small.json
+```
+
+**Stima tempi**: ~30 minuti per la configurazione default (250+250+250+Rijks ~1000). Il primo run scarica il modello (~3 min in più). Le run successive sono molto più veloci grazie alla cache.
+
+**Passo 2: distribuisci il file**
+
+Il file `public/data/embeddings.json` viene servito da Next.js come asset statico. Includilo nel commit (è generato offline) oppure generalo in CI. Dimensione tipica: ~4-8MB per 2000 opere (512 float32 × 4 bytes × n opere + metadati).
+
+**Come funziona nel browser**
+
+Al primo click su "Connessioni visive" di un waypoint:
+
+1. Il modello CLIP viene scaricato dal CDN di Hugging Face (~170MB, poi in cache del browser)
+2. L'indice `embeddings.json` viene caricato una volta sola in memoria
+3. L'embedding del crop viene generato in ONNX Runtime Web (~1-2s)
+4. Cosine similarity brute-force contro tutti gli embedding (~10ms per 2000 opere)
+5. I top-8 risultati appaiono nel pannello
+
+**Privacy**: il crop del waypoint non lascia mai il browser — CLIP gira in locale via ONNX Runtime Web.
+
+> Vedi [AI.md](AI.md) per la descrizione architetturale completa, le scelte tecniche e le alternative valutate.
+
 ```bash
 pnpm dev
 ```
@@ -189,26 +233,35 @@ Apri [http://localhost:3000](http://localhost:3000).
 
 ## Stato attuale
 
-| Componente                                  | Stato |
-| ------------------------------------------- | ----- |
-| API musei aggregata (`/api/museums/search`) | ✅    |
-| Gallery masonry con infinite scroll         | ✅    |
-| Ricerca testuale con debounce               | ✅    |
-| Filtri per museo (chip multi-select)        | ✅    |
-| Pagina dettaglio opera + viewer IIIF        | ✅    |
-| Hook `useViewer` + `useStory`               | ✅    |
-| `StoryPlayer` (overlay, keyboard, touch)    | ✅    |
-| Demo story: La Ronda di Notte               | ✅    |
-| Pagina pubblica `/story/[id]` + OG tags     | ✅    |
-| Listing `/stories` con filtri e masonry     | ✅    |
-| API `/api/stories` (listing + singola)      | ✅    |
-| Condivisione: copia URL, X, WhatsApp        | ✅    |
-| Pagina editor `/editor/[artworkId]`         | ✅    |
-| Editor Tiptap (bold, italic, link)          | ✅    |
-| Waypoint DnD (`@dnd-kit/sortable`)          | ✅    |
-| Autosave 30s + indicatore stato             | ✅    |
-| Pubblicazione + link condivisibile          | ✅    |
-| Le mie bozze (riapri, elimina)              | ✅    |
+Le fasi 0–7 sono completate. La fase 9 (connessioni visive AI) è in corso.
+
+| Componente                                             | Stato | Fase |
+| ------------------------------------------------------ | ----- | ---- |
+| API musei aggregata (`/api/museums/search`)            | ✅    | 1    |
+| Gallery masonry con infinite scroll                    | ✅    | 2    |
+| Ricerca testuale con debounce                          | ✅    | 2    |
+| Filtri per museo (chip multi-select)                   | ✅    | 2    |
+| Pagina dettaglio opera + viewer IIIF                   | ✅    | 3    |
+| Hook `useViewer` + `useStory`                          | ✅    | 4    |
+| `StoryPlayer` (overlay, keyboard, touch)               | ✅    | 4    |
+| Demo story: La Ronda di Notte                          | ✅    | 8    |
+| Pagina pubblica `/story/[id]` + OG tags                | ✅    | 6    |
+| Listing `/stories` con filtri e masonry                | ✅    | 6    |
+| API `/api/stories` (listing + singola)                 | ✅    | 6    |
+| Condivisione: copia URL, X, WhatsApp                   | ✅    | 6    |
+| Pagina editor `/editor/[artworkId]`                    | ✅    | 5    |
+| Editor Tiptap (bold, italic, link)                     | ✅    | 5    |
+| Waypoint DnD (`@dnd-kit/sortable`)                     | ✅    | 5    |
+| Autosave 30s + indicatore stato                        | ✅    | 5    |
+| Pubblicazione + link condivisibile                     | ✅    | 5    |
+| Le mie bozze (riapri, elimina)                         | ✅    | 5    |
+| AI: suggerisci testo waypoint (Groq / OpenAI / Ollama) | ✅    | 7    |
+| AI: auto-story 6 waypoint con un click                 | ✅    | 7    |
+| AI: indice CLIP + script `pnpm generate:embeddings`    | ✅    | 9    |
+| AI: `useSimilarity` hook (CLIP nel browser)            | ✅    | 9    |
+| AI: pannello "Connessioni visive" nell'editor          | ✅    | 9    |
+| AI: spiegazione testuale connessione (Groq)            | ✅    | 9    |
+| Pagina `/explore` — grafo connessioni                  | 🔜    | 9    |
 
 ## Struttura cartelle
 
@@ -234,13 +287,18 @@ hooks/
 ├── useViewer.ts                # OpenSeadragon init, goToViewport, captureViewport ✅
 ├── useStory.ts                 # Playback waypoint, auto-advance, play/pause ✅
 ├── useAnonymousAuthor.ts       # Cookie autore anonimo, displayName localStorage ✅
-└── useEditorAutosave.ts        # Autosave editor: POST bozza, PUT 30s, status ✅
+├── useEditorAutosave.ts        # Autosave editor: POST bozza, PUT 30s, status ✅
+└── useSimilarity.ts            # CLIP nel browser: carica modello + cerca opere simili ✅
 lib/
 ├── museums/                    # Adapter e transformer per ogni museo ✅
 ├── supabase/                   # Client, queries, tipi DB ✅
+├── ai/                         # client.ts (LLM), similarity.ts (tipi CLIP + cosine) ✅
 └── cookies/                    # Gestione autore anonimo ✅
 scripts/
-└── seed-demo-stories.ts        # Inserisce la storia demo Ronda di Notte ✅
+├── seed-demo-stories.ts        # Inserisce la storia demo Ronda di Notte ✅
+└── generate-embeddings.ts      # Script offline: genera public/data/embeddings.json ✅
+public/data/
+└── embeddings.json             # Indice CLIP: generato con pnpm generate:embeddings
 supabase/migrations/
 ├── 001_init.sql                # Tabella stories + funzione increment_view_count ✅
 └── 002_grants.sql              # GRANT permessi al ruolo anon ✅

@@ -430,6 +430,90 @@
 
 ---
 
+## Fase 9 — AI: Connessioni nascoste tra opere (Settimane 10-12)
+
+### Contesto e filosofia
+
+L'AI qui non genera contenuto — scopre relazioni. Quando il curatore seleziona un dettaglio in un waypoint, il sistema cerca visualmente dettagli simili in tutte le opere della gallery. Questo trasforma la piattaforma da "racconta un'opera" a "racconta le connessioni tra le opere", che è ciò che fanno i grandi curatori.
+
+Fonti di ispirazione:
+
+- [MosAIc (MIT CSAIL + Microsoft)](https://news.mit.edu/2020/algorithm-finds-hidden-connections-between-paintings-met-museum-0729)
+- [Met Art Explorer network graph](https://www.metmuseum.org/perspectives/met-microsoft-mit-exploring-art-open-access-ai-whats-next)
+- [Algorithmic Ways of Seeing (arXiv)](https://arxiv.org/html/2403.19174v1)
+- [Visual link retrieval in painting datasets](https://link.springer.com/article/10.1007/s11042-020-09995-z)
+
+### 9.1 — Generazione embedding per le opere in gallery
+
+- [x] Scegliere il modello per gli embedding visivi:
+  - **Scelta**: `@xenova/transformers` (Transformers.js, ONNX Runtime Web) — stesso modello offline e browser
+  - Modello: `Xenova/clip-vit-base-patch32` — vettori 512 dimensioni, fp32, normalizzati L2
+  - Privacy by design: il crop non lascia mai il browser; zero costi server; offline-capable
+  - Vedi [AI.md](AI.md) per il confronto dettagliato con HF Inference API e pgvector
+- [x] Pipeline di indicizzazione (`pnpm generate:embeddings`):
+  1. Fetch ~2000 opere dalla gallery (Chicago/Wellcome/YCBA: 250 a museo; Rijksmuseum: tutte via cursor pagination)
+  2. Per ogni opera: scarica thumbnail, genera embedding CLIP (`quantized: false`)
+  3. Salva in `public/data/embeddings.json`: array di `EmbeddingEntry { artworkId, embedding: number[512], provider, title, artist, thumbnailUrl }`
+  - Dimensione tipica: ~4-8MB per 2000 opere — gestibile come file statico Next.js
+  - Rijksmuseum: cursor pagination nativa (`next` URL) — indicizza TUTTE le opere (1000-3000)
+- [x] `lib/ai/similarity.ts`: tipi `EmbeddingEntry`, `SimilarityResult`; `cosineSimilarity()` (dot product su vettori normalizzati); `findTopK()` brute-force O(n×d)
+
+### 9.2 — Ricerca per similarità visiva da un dettaglio
+
+- [x] `hooks/useSimilarity.ts`: hook browser che gestisce l'intero ciclo di vita
+  - Singletons di modulo per modello CLIP e indice embedding (caricati una volta per sessione)
+  - `ensureReady()`: dynamic import `@xenova/transformers` + fetch `/data/embeddings.json` in parallelo
+  - `findSimilar(imageBase64, k, excludeId)`: genera embedding query → `findTopK()` → top-k risultati
+  - Status: `idle | loading-model | loading-index | ready | searching | error`
+- [x] `next.config.ts`: webpack alias `sharp: false`, `onnxruntime-node: false` per il bundle browser
+
+### 9.3 — UI "Connessioni visive" nell'editor
+
+- [x] Pannello espandibile "Connessioni visive" nel `WaypointEditor`:
+  - Visibile solo se il waypoint ha `thumbnailDataUrl` (crop disponibile)
+  - Al click: chiama `onFindSimilar(thumbnailDataUrl)` → loading state
+  - Risultati: griglia 2 colonne con thumbnail, titolo, artista, provider badge, score %
+  - Toggle: secondo click nasconde il pannello
+- [x] `EditorShell`: instanzia `useSimilarity()`, passa `handleFindSimilar` e `handleExplainConnection` come prop al `WaypointEditor`
+- [x] API route `POST /api/ai/explain-connection`: titolo+artista delle due opere + similarity score → 1-2 frasi in italiano
+  - Prompt calibrato sul similarity score: alta (≥0.85) / significativa (≥0.70) / sottile (<0.70)
+  - Risposta: `{ explanation: string }`
+- [x] UI: pulsante "✦ Spiega connessione" per ogni card risultato — genera la spiegazione inline
+- [ ] Nel player (`StoryPlayer`): layout split per waypoint di tipo "connection" (opera corrente + opera connessa)
+- [ ] Tipo waypoint esteso per le connessioni (opzionale — da valutare in fase 8 polish)
+
+### 9.4 — Pagina "Esplora connessioni" (bonus)
+
+- [ ] Nuova pagina `/explore`: grafo visuale (D3 force-directed) delle opere più simili
+  - Ogni nodo = un'opera, archi = similarità > soglia configurabile
+  - Click su arco → affiancamento delle due opere con score
+  - Ispirazione: Met Art Explorer network graph
+- [ ] Pura esplorazione visiva, nessun authoring richiesto
+- [ ] "Wow factor" per il portfolio: connessioni tra migliaia di opere di 4 musei diversi
+
+### 9.5 — Documentazione e demo
+
+- [ ] Sezione "Connessioni nascoste" nel README
+- [ ] Screenshot/GIF del pannello connessioni nell'editor e del grafo `/explore`
+- [ ] Nota esplicita: "L'AI non genera narrativa — identifica relazioni visive. La narrazione resta nelle mani del curatore."
+
+### Stack aggiuntivo per questa fase
+
+| Tecnologia                  | Uso                                                        | Stato          |
+| --------------------------- | ---------------------------------------------------------- | -------------- |
+| `@xenova/transformers`      | Embedding CLIP offline (script) + browser (hook)           | ✅ Installato  |
+| `pgvector` (Supabase)       | Alternativa scalabile a file statico — non usato (n≤2000)  | Non necessario |
+| `comlink`                   | Web Worker ergonomico — non necessario (~10ms brute-force) | Non necessario |
+| `d3-force` + `d3-selection` | Grafo `/explore`                                           | 🔜 Fase 9.4    |
+
+### Criterio completamento
+
+- L'utente cattura un waypoint → riceve 4-8 opere visivamente simili in < 3 secondi
+- Può aggiungere una connessione alla storia → nel player appare il confronto visivo affiancato
+- La pagina `/explore` mostra un grafo navigabile delle connessioni tra opere
+
+---
+
 ## Fase 8 — Polish, demo, documentazione (Settimana 9)
 
 - [x] Demo story "La Ronda di Notte" (Rembrandt/Rijksmuseum) — 6 waypoint, inserita con `pnpm seed:demo`
